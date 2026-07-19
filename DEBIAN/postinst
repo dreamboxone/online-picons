@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+PLUGIN_DIR="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
+
+if command -v python3 >/dev/null 2>&1; then
+    python3 -m compileall -q "$PLUGIN_DIR" || true
+elif command -v python >/dev/null 2>&1; then
+    python -m compileall -q "$PLUGIN_DIR" || true
+fi
+
+exit 0
+
