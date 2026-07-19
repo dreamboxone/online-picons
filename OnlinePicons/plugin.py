@@ -24,7 +24,7 @@ from Plugins.Plugin import PluginDescriptor
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.VirtualKeyBoard import VirtualKeyBoard
-from enigma import eTimer, gRGB
+from enigma import eTimer
 
 from . import PLUGIN_VERSION
 
@@ -235,9 +235,9 @@ class DestinationScreen(Screen):
     def refresh(self):
         rows = []
         for index, path in enumerate(self.paths):
-            mark = u"✓" if index == self.selected else u"○"
+            mark = "[X]" if index == self.selected else "[ ]"
             label = path if index < 2 else "Custom path"
-            rows.append(_menu_text(u"%s  %s" % (mark, label)))
+            rows.append(_menu_text("%s  %s" % (mark, label)))
         current = self["paths"].getSelectedIndex()
         self["paths"].setList(rows)
         self["paths"].moveToIndex(current)
@@ -291,8 +291,12 @@ class DownloadScreen(Screen):
     skin = """
     <screen name="DownloadScreen" position="center,center" size="1180,690"
             title="Online Picons - Download Picons">
-        <widget name="online" position="35,22" size="410,45"
+        <widget name="online" position="35,22" size="105,45"
                 font="Regular;27" />
+        <widget name="onlineDot" position="145,27" size="28,28"
+                alphatest="blend" />
+        <widget name="connection" position="185,22" size="280,45"
+                font="Regular;23" />
         <widget name="destination" position="470,25" size="675,38"
                 font="Regular;21" halign="right" foregroundColor="#aaaaaa" />
         <widget name="satellites" position="35,85" size="1110,490"
@@ -312,7 +316,9 @@ class DownloadScreen(Screen):
         self.connectivity = "checking"
         self.result_queue = []
         self.poll_timer = eTimer()
-        self["online"] = Label(u"Online  ●  Checking...")
+        self["online"] = Label("Online")
+        self["onlineDot"] = Pixmap()
+        self["connection"] = Label("Checking...")
         self["destination"] = Label(
             "Destination: %s" % config.plugins.onlinepicons.destination.value
         )
@@ -329,6 +335,7 @@ class DownloadScreen(Screen):
             -1,
         )
         self.onClose.append(self._cleanup)
+        self.onLayoutFinish.append(lambda: self._set_connection_dot("checking"))
         self.refresh_list()
         _timer_start(self.poll_timer, 150, self.poll_results)
         self._run_background("connectivity", self._check_connectivity)
@@ -386,17 +393,22 @@ class DownloadScreen(Screen):
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "online":
-            self["online"].setText(u"Online  ●  Connected")
-            self["online"].instance.setForegroundColor(gRGB(0x0000CC44))
+            self["connection"].setText("Connected")
+            self._set_connection_dot("green")
             self["status"].setText("Connected to Google and GitHub")
         elif state == "google_only":
-            self["online"].setText(u"Online  ●  GitHub unavailable")
-            self["online"].instance.setForegroundColor(gRGB(0x00E6B800))
+            self["connection"].setText("GitHub unavailable")
+            self._set_connection_dot("yellow")
             self["status"].setText("Internet works, but GitHub is unavailable")
         else:
-            self["online"].setText(u"Online  ●  Offline")
-            self["online"].instance.setForegroundColor(gRGB(0x00DD3333))
+            self["connection"].setText("Offline")
+            self._set_connection_dot("red")
             self["status"].setText("No internet connection")
+
+    def _set_connection_dot(self, color):
+        path = os.path.join(PLUGIN_PATH, "dot-%s.png" % color)
+        if os.path.exists(path) and self["onlineDot"].instance is not None:
+            self["onlineDot"].instance.setPixmapFromFile(path)
 
     def refresh_list(self):
         index = self["satellites"].getSelectedIndex()
@@ -406,7 +418,7 @@ class DownloadScreen(Screen):
             if PY2 and isinstance(display_title, str):
                 display_title = display_title.decode("utf-8")
             rows.append(_menu_text(u"%s  %s" % (
-                u"✓" if stem in self.selected else u"□",
+                "[X]" if stem in self.selected else "[ ]",
                 display_title,
             )))
         self["satellites"].setList(rows)

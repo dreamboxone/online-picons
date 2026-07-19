@@ -13,7 +13,7 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
 
 
@@ -116,6 +116,16 @@ def make_menu_icon(path, kind):
     png(path, width, height, pixels)
 
 
+def make_dot_icon(path, color):
+    width = height = 32
+    pixels = []
+    for y in range(height):
+        for x in range(width):
+            dx, dy = x - 16, y - 16
+            pixels.extend(color if dx * dx + dy * dy <= 13 * 13 else (0, 0, 0, 0))
+    png(path, width, height, pixels)
+
+
 def add_bytes(tar, name, data, mode=0o644):
     info = tarfile.TarInfo(name)
     info.size = len(data)
@@ -176,6 +186,10 @@ def main():
     make_menu_icon(os.path.join(plugin_stage, "settings.png"), "settings")
     make_menu_icon(os.path.join(plugin_stage, "download.png"), "download")
     make_menu_icon(os.path.join(plugin_stage, "about.png"), "about")
+    make_dot_icon(os.path.join(plugin_stage, "dot-checking.png"), (125, 125, 125, 255))
+    make_dot_icon(os.path.join(plugin_stage, "dot-red.png"), (220, 45, 45, 255))
+    make_dot_icon(os.path.join(plugin_stage, "dot-yellow.png"), (235, 190, 20, 255))
+    make_dot_icon(os.path.join(plugin_stage, "dot-green.png"), (35, 190, 90, 255))
 
     control_entries = []
     for name in ("control", "postinst", "prerm"):
