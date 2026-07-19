@@ -120,7 +120,7 @@ class OnlinePiconsMain(Screen):
         <widget name="title" position="45,30" size="810,55"
                 font="Regular;38" halign="center" />
         <widget name="menu" position="120,115" size="660,310"
-                itemHeight="78" font="Regular;30" scrollbarMode="showNever" />
+                scrollbarMode="showNever" />
         <widget name="hint" position="45,480" size="810,38"
                 font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
     </screen>
@@ -158,7 +158,7 @@ class DestinationScreen(Screen):
         <widget name="heading" position="45,25" size="910,45"
                 font="Regular;30" halign="center" />
         <widget name="paths" position="65,100" size="870,260"
-                itemHeight="72" font="Regular;28" scrollbarMode="showNever" />
+                scrollbarMode="showNever" />
         <widget name="custom" position="65,385" size="870,55"
                 font="Regular;25" halign="left" valign="center"
                 backgroundColor="#202020" transparent="0" />
@@ -259,7 +259,7 @@ class DownloadScreen(Screen):
         <widget name="destination" position="470,25" size="675,38"
                 font="Regular;21" halign="right" foregroundColor="#aaaaaa" />
         <widget name="satellites" position="35,85" size="1110,490"
-                itemHeight="44" font="Regular;24" scrollbarMode="showOnDemand" />
+                scrollbarMode="showOnDemand" />
         <widget name="status" position="35,585" size="1110,38"
                 font="Regular;21" halign="center" />
         <widget name="keys" position="35,635" size="1110,35"
