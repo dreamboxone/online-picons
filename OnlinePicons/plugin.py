@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 
@@ -17,6 +18,7 @@ except ImportError:
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
+from Components.Pixmap import Pixmap
 from Components.config import ConfigSubsection, ConfigText, config, configfile
 from Plugins.Plugin import PluginDescriptor
 from Screens.MessageBox import MessageBox
@@ -31,6 +33,20 @@ REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
 GOOGLE_CHECK = "https://www.google.com/generate_204"
 GITHUB_CHECK = "https://github.com"
+PLUGIN_PATH = os.path.dirname(os.path.abspath(__file__))
+PY2 = sys.version_info[0] == 2
+
+try:
+    text_type = unicode
+except NameError:
+    text_type = str
+
+
+def _menu_text(value):
+    """Return the string type expected by DreamOS eListbox content."""
+    if PY2 and isinstance(value, text_type):
+        return value.encode("utf-8")
+    return value
 
 if not hasattr(config.plugins, "onlinepicons"):
     config.plugins.onlinepicons = ConfigSubsection()
@@ -121,6 +137,12 @@ class OnlinePiconsMain(Screen):
                 font="Regular;38" halign="center" />
         <widget name="menu" position="120,115" size="660,310"
                 scrollbarMode="showNever" />
+        <widget name="settingsIcon" position="78,122" size="30,30"
+                alphatest="blend" />
+        <widget name="downloadIcon" position="78,167" size="30,30"
+                alphatest="blend" />
+        <widget name="aboutIcon" position="78,212" size="30,30"
+                alphatest="blend" />
         <widget name="hint" position="45,480" size="810,38"
                 font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
     </screen>
@@ -130,16 +152,31 @@ class OnlinePiconsMain(Screen):
         Screen.__init__(self, session)
         self["title"] = Label("Online Picons")
         self["menu"] = MenuList([
-            u"⚙  Settings",
-            u"⇩  Download Picons",
-            u"ⓘ  About",
+            "Settings",
+            "Download Picons",
+            "About",
         ])
+        self["settingsIcon"] = Pixmap()
+        self["downloadIcon"] = Pixmap()
+        self["aboutIcon"] = Pixmap()
         self["hint"] = Label("OK: Select     EXIT: Close")
         self["actions"] = ActionMap(
             ["OkCancelActions"],
             {"ok": self.open_selected, "cancel": self.close},
             -1,
         )
+        self.onLayoutFinish.append(self.load_icons)
+
+    def load_icons(self):
+        icons = (
+            ("settingsIcon", "settings.png"),
+            ("downloadIcon", "download.png"),
+            ("aboutIcon", "about.png"),
+        )
+        for widget, filename in icons:
+            path = os.path.join(PLUGIN_PATH, filename)
+            if os.path.exists(path):
+                self[widget].instance.setPixmapFromFile(path)
 
     def open_selected(self):
         index = self["menu"].getSelectedIndex()
@@ -200,7 +237,7 @@ class DestinationScreen(Screen):
         for index, path in enumerate(self.paths):
             mark = u"✓" if index == self.selected else u"○"
             label = path if index < 2 else "Custom path"
-            rows.append(u"%s  %s" % (mark, label))
+            rows.append(_menu_text(u"%s  %s" % (mark, label)))
         current = self["paths"].getSelectedIndex()
         self["paths"].setList(rows)
         self["paths"].moveToIndex(current)
@@ -365,10 +402,13 @@ class DownloadScreen(Screen):
         index = self["satellites"].getSelectedIndex()
         rows = []
         for title, stem in SATELLITES:
-            rows.append(u"%s  %s" % (
+            display_title = title
+            if PY2 and isinstance(display_title, str):
+                display_title = display_title.decode("utf-8")
+            rows.append(_menu_text(u"%s  %s" % (
                 u"✓" if stem in self.selected else u"□",
-                title,
-            ))
+                display_title,
+            )))
         self["satellites"].setList(rows)
         self["satellites"].moveToIndex(index)
 
