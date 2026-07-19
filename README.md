@@ -20,13 +20,13 @@ Enigma2 با سیستم‌عامل DreamOS ساخته شده است.
 
 ## Archive naming
 
-Place RAR archives in the repository root. Use the orbital position without a
-decimal point, followed by `e` or `w`, for example:
+Place RAR archives in the repository root. Use the orbital position followed
+by `e` or `w`; keep non-zero decimal positions in the file name, for example:
 
 - `52e.rar`
-- `192e.rar`
-- `08w.rar`
-- `1005e.rar`
+- `19.2e.rar`
+- `0.8w.rar`
+- `100.5e.rar`
 
 One of the supported RAR extraction tools must be installed on the receiver.
 
@@ -49,7 +49,7 @@ wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/main/insta
 یا فایل DEB را مستقیماً دانلود و نصب کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.0_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
+wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.1_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
 ```
 
 پس از نصب، Enigma2 را یک‌بار Restart کنید.
@@ -58,12 +58,12 @@ wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubuserc
 
 فایل زیر را با FTP یا FileZilla به پوشه `/tmp` گیرنده انتقال دهید:
 
-`enigma2-plugin-extensions-online-picons_1.0.0_all.deb`
+`enigma2-plugin-extensions-online-picons_1.0.1_all.deb`
 
 سپس اجرا کنید:
 
 ```sh
-dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.0_all.deb
+dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.1_all.deb
 ```
 
 در صورت نمایش خطای وابستگی:

@@ -13,7 +13,7 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
 
 
@@ -69,12 +69,24 @@ def add_bytes(tar, name, data, mode=0o644):
     tar.addfile(info, io.BytesIO(data))
 
 
-def make_tar(entries):
+def make_tar(entries, directories=None):
     raw = io.BytesIO()
     with tarfile.open(fileobj=raw, mode="w", format=tarfile.GNU_FORMAT) as tar:
+        for name in directories or []:
+            info = tarfile.TarInfo(name.rstrip("/") + "/")
+            info.type = tarfile.DIRTYPE
+            info.mode = 0o755
+            info.mtime = int(os.environ.get("SOURCE_DATE_EPOCH", "1767225600"))
+            tar.addfile(info)
         for name, source, mode in entries:
             with open(source, "rb") as item:
-                add_bytes(tar, name, item.read(), mode)
+                data = item.read()
+                if (
+                    source.endswith((".py", ".sh", ".yml", ".yaml"))
+                    or os.path.basename(source) in ("control", "postinst", "prerm")
+                ):
+                    data = data.replace(b"\r\n", b"\n")
+                add_bytes(tar, name, data, mode)
     compressed = io.BytesIO()
     with gzip.GzipFile(fileobj=compressed, mode="wb", mtime=0) as output:
         output.write(raw.getvalue())
@@ -123,7 +135,16 @@ def main():
             ))
 
     control_tar = make_tar(control_entries)
-    data_tar = make_tar(data_entries)
+    data_directories = [
+        "usr",
+        "usr/lib",
+        "usr/lib/enigma2",
+        "usr/lib/enigma2/python",
+        "usr/lib/enigma2/python/Plugins",
+        "usr/lib/enigma2/python/Plugins/Extensions",
+        PLUGIN_TARGET,
+    ]
+    data_tar = make_tar(data_entries, directories=data_directories)
     os.makedirs(OUTPUT, exist_ok=True)
     output_path = os.path.join(
         OUTPUT, "%s_%s_all.deb" % (PACKAGE, VERSION)
