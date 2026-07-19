@@ -24,7 +24,7 @@ from Plugins.Plugin import PluginDescriptor
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.VirtualKeyBoard import VirtualKeyBoard
-from enigma import eTimer
+from enigma import eTimer, gFont
 
 from . import PLUGIN_VERSION
 
@@ -47,6 +47,24 @@ def _menu_text(value):
     if PY2 and isinstance(value, text_type):
         return value.encode("utf-8")
     return value
+
+
+def _set_menu_style(menu, font_size, item_height):
+    """Style MenuList content without applying attributes to eListbox."""
+    font = gFont("Regular", font_size)
+    try:
+        menu.l.setFont(font)
+    except TypeError:
+        try:
+            menu.l.setFont(0, font)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    try:
+        menu.l.setItemHeight(item_height)
+    except Exception:
+        pass
 
 if not hasattr(config.plugins, "onlinepicons"):
     config.plugins.onlinepicons = ConfigSubsection()
@@ -137,11 +155,14 @@ class OnlinePiconsMain(Screen):
                 font="Regular;38" halign="center" />
         <widget name="menu" position="120,115" size="660,310"
                 scrollbarMode="showNever" />
-        <widget name="settingsIcon" position="78,122" size="30,30"
+        <widget name="settingsIcon" position="65,120" size="42,42"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/settings.png"
                 alphatest="blend" />
-        <widget name="downloadIcon" position="78,167" size="30,30"
+        <widget name="downloadIcon" position="65,172" size="42,42"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/download.png"
                 alphatest="blend" />
-        <widget name="aboutIcon" position="78,212" size="30,30"
+        <widget name="aboutIcon" position="65,224" size="42,42"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/about.png"
                 alphatest="blend" />
         <widget name="hint" position="45,480" size="810,38"
                 font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
@@ -156,6 +177,7 @@ class OnlinePiconsMain(Screen):
             "Download Picons",
             "About",
         ])
+        _set_menu_style(self["menu"], 34, 52)
         self["settingsIcon"] = Pixmap()
         self["downloadIcon"] = Pixmap()
         self["aboutIcon"] = Pixmap()
@@ -165,19 +187,6 @@ class OnlinePiconsMain(Screen):
             {"ok": self.open_selected, "cancel": self.close},
             -1,
         )
-        self.onLayoutFinish.append(self.load_icons)
-
-    def load_icons(self):
-        icons = (
-            ("settingsIcon", "settings.png"),
-            ("downloadIcon", "download.png"),
-            ("aboutIcon", "about.png"),
-        )
-        for widget, filename in icons:
-            path = os.path.join(PLUGIN_PATH, filename)
-            if os.path.exists(path):
-                self[widget].instance.setPixmapFromFile(path)
-
     def open_selected(self):
         index = self["menu"].getSelectedIndex()
         if index == 0:
@@ -218,6 +227,7 @@ class DestinationScreen(Screen):
         self.selected = self.paths.index(saved) if saved in self.paths else 2
         self["heading"] = Label("Choose the destination for downloaded picons")
         self["paths"] = MenuList([])
+        _set_menu_style(self["paths"], 30, 48)
         self["custom"] = Label("")
         self["keys"] = Label("OK: Select     BLUE: Edit custom path     GREEN: Save")
         self["actions"] = ActionMap(
@@ -294,6 +304,7 @@ class DownloadScreen(Screen):
         <widget name="online" position="35,22" size="105,45"
                 font="Regular;27" />
         <widget name="onlineDot" position="145,27" size="28,28"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/dot-checking.png"
                 alphatest="blend" />
         <widget name="connection" position="185,22" size="280,45"
                 font="Regular;23" />
@@ -323,6 +334,7 @@ class DownloadScreen(Screen):
             "Destination: %s" % config.plugins.onlinepicons.destination.value
         )
         self["satellites"] = MenuList([])
+        _set_menu_style(self["satellites"], 28, 40)
         self["status"] = Label("Checking internet connection...")
         self["keys"] = Label("OK: Select/Unselect     GREEN: Download     EXIT: Back")
         self["actions"] = ActionMap(
@@ -335,7 +347,6 @@ class DownloadScreen(Screen):
             -1,
         )
         self.onClose.append(self._cleanup)
-        self.onLayoutFinish.append(lambda: self._set_connection_dot("checking"))
         self.refresh_list()
         _timer_start(self.poll_timer, 150, self.poll_results)
         self._run_background("connectivity", self._check_connectivity)
