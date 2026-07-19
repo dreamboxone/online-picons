@@ -174,6 +174,15 @@ def _archive_stem(title):
     return position + direction
 
 
+def _extractor_available():
+    for command in ("unrar", "7z", "7za", "bsdtar"):
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            executable = os.path.join(directory, command)
+            if os.path.isfile(executable) and os.access(executable, os.X_OK):
+                return True
+    return False
+
+
 class OnlinePiconsMain(Screen):
     skin = """
     <screen name="OnlinePiconsMain" position="center,center" size="900,560"
@@ -249,8 +258,12 @@ class DestinationScreen(Screen):
         <widget name="custom" position="65,385" size="870,55"
                 font="Regular;25" halign="left" valign="center"
                 backgroundColor="#202020" transparent="0" />
-        <widget name="keys" position="65,485" size="870,42"
-                font="Regular;22" halign="center" />
+        <widget name="keysLeft" position="130,485" size="390,42"
+                font="Regular;22" halign="right" />
+        <widget name="greenKey" position="520,485" size="78,42"
+                font="Regular;22" halign="center" foregroundColor="#00ff00" />
+        <widget name="keysRight" position="598,485" size="270,42"
+                font="Regular;22" halign="left" />
     </screen>
     """
 
@@ -270,7 +283,9 @@ class DestinationScreen(Screen):
         self["paths"] = MenuList([])
         _set_menu_style(self["paths"], 30, 48)
         self["custom"] = Label("")
-        self["keys"] = Label("OK: Select     BLUE: Edit custom path     GREEN: Save")
+        self["keysLeft"] = Label("OK: Select     BLUE: Edit custom path     ")
+        self["greenKey"] = Label("GREEN")
+        self["keysRight"] = Label(": Save")
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -355,8 +370,12 @@ class DownloadScreen(Screen):
                 scrollbarMode="showOnDemand" />
         <widget name="status" position="35,585" size="1110,38"
                 font="Regular;21" halign="center" />
-        <widget name="keys" position="35,635" size="1110,35"
-                font="Regular;22" halign="center" />
+        <widget name="keysLeft" position="190,635" size="430,35"
+                font="Regular;22" halign="right" />
+        <widget name="greenKey" position="620,635" size="78,35"
+                font="Regular;22" halign="center" foregroundColor="#00ff00" />
+        <widget name="keysRight" position="698,635" size="300,35"
+                font="Regular;22" halign="left" />
     </screen>
     """
 
@@ -375,8 +394,10 @@ class DownloadScreen(Screen):
         self.probe_console = Console()
         self.probe_timeout_timer = eTimer()
         self.active_probe = None
+        self.extractor_console = Console()
+        self.pending_download_stems = None
         self.screen_closed = False
-        self["online"] = Label("Online")
+        self["online"] = Label("Internet")
         self["onlineDot"] = Pixmap()
         self["connection"] = Label("Checking...")
         self["destination"] = Label(
@@ -390,7 +411,9 @@ class DownloadScreen(Screen):
         self["satellites"].l.setFont(0, gFont("Regular", 32))
         self["satellites"].l.setItemHeight(46)
         self["status"] = Label("Checking internet connection...")
-        self["keys"] = Label("OK: Select/Unselect     GREEN: Download     EXIT: Back")
+        self["keysLeft"] = Label("OK: Select/Unselect     ")
+        self["greenKey"] = Label("GREEN")
+        self["keysRight"] = Label(": Download     EXIT: Back")
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -420,6 +443,10 @@ class DownloadScreen(Screen):
             pass
         try:
             self.probe_console.killAll()
+        except Exception:
+            pass
+        try:
+            self.extractor_console.killAll()
         except Exception:
             pass
 
@@ -512,11 +539,11 @@ class DownloadScreen(Screen):
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "online":
-            self["connection"].setText("Connected")
+            self["connection"].setText("Online")
             self._set_connection_dot("green")
             self["status"].setText("Connected to Google and GitHub")
         elif state == "google_only":
-            self["connection"].setText("GitHub unavailable")
+            self["connection"].setText("Limited Internet")
             self._set_connection_dot("yellow")
             self["status"].setText("Internet works, but GitHub is unavailable")
         else:
@@ -647,7 +674,8 @@ class DownloadScreen(Screen):
             self.session.open(
                 MessageBox,
                 _menu_text(
-                    u"این فایل فعلاً وجود ندارد؛ لطفاً بعداً مراجعه نمایید."
+                    u"این فایل فعلا وجود ندارد. لطفا بعدا مراجعه نمایید.\n\n"
+                    u"This file is not uploaded yet. Please visit us later..."
                 ),
                 MessageBox.TYPE_INFO,
                 timeout=5,
@@ -678,9 +706,49 @@ class DownloadScreen(Screen):
                 timeout=5,
             )
             return
+        stems = list(self.selected.keys())
+        if not _extractor_available():
+            self.busy = True
+            self.pending_download_stems = stems
+            self["status"].setText("Preparing download support...")
+            command = (
+                "sh -c '"
+                "apt-get update >/tmp/online-picons-setup.log 2>&1 || true; "
+                "apt-get install -y unrar >>/tmp/online-picons-setup.log 2>&1 || "
+                "apt-get install -y unrar-free >>/tmp/online-picons-setup.log 2>&1 || "
+                "apt-get install -y p7zip-full >>/tmp/online-picons-setup.log 2>&1 || "
+                "apt-get install -y p7zip >>/tmp/online-picons-setup.log 2>&1"
+                "'"
+            )
+            try:
+                self.extractor_console.ePopen(
+                    command,
+                    self._extractor_install_finished,
+                    [],
+                )
+            except Exception:
+                self._extractor_install_finished("", 1, [])
+            return
+        self._start_download(stems)
+
+    def _extractor_install_finished(self, output, return_code, extra_args):
+        stems = self.pending_download_stems
+        self.pending_download_stems = None
+        if return_code != 0 or not _extractor_available():
+            self.busy = False
+            self["status"].setText("Download preparation failed")
+            self.session.open(
+                MessageBox,
+                "امکان آماده‌سازی دانلود وجود ندارد. اتصال اینترنت را بررسی و دوباره تلاش کنید.",
+                MessageBox.TYPE_ERROR,
+                timeout=7,
+            )
+            return
+        self._start_download(stems)
+
+    def _start_download(self, stems):
         self.busy = True
         self["status"].setText("Downloading selected picons...")
-        stems = list(self.selected.keys())
         self._run_background("download", self._download_all, stems)
 
     def _download_all(self, stems):
@@ -742,7 +810,7 @@ class DownloadScreen(Screen):
             except OSError:
                 pass
         raise RuntimeError(
-            "ابزار استخراج RAR پیدا نشد. لطفاً unrar یا 7z را نصب کنید."
+            "RAR extraction failed"
         )
 
     def _download_finished(self, success, result):
@@ -763,7 +831,7 @@ class DownloadScreen(Screen):
             self["status"].setText("Download failed")
             self.session.open(
                 MessageBox,
-                "خطا در دانلود یا استخراج پیکون‌ها:\n%s" % result,
+                "خطا در دانلود یا آماده‌سازی پیکون‌ها. لطفاً دوباره تلاش کنید.",
                 MessageBox.TYPE_ERROR,
                 timeout=8,
             )
@@ -772,10 +840,13 @@ class DownloadScreen(Screen):
 class AboutScreen(Screen):
     skin = """
     <screen name="AboutScreen" position="center,center" size="850,520"
-            title="About Online Picons">
+            title="About">
         <widget name="title" position="35,45" size="780,60"
                 font="Regular;38" halign="center" />
-        <widget name="body" position="55,145" size="740,280"
+        <widget name="youtubeLogo" position="365,115" size="120,68"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/youtube.png"
+                alphatest="blend" />
+        <widget name="body" position="55,190" size="740,230"
                 font="Regular;27" halign="center" valign="center" />
         <widget name="hint" position="35,455" size="780,35"
                 font="Regular;21" halign="center" foregroundColor="#aaaaaa" />
@@ -784,11 +855,11 @@ class AboutScreen(Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self["title"] = Label("Online Picons")
+        self["title"] = Label("About")
+        self["youtubeLogo"] = Pixmap()
         self["body"] = Label(
             "YouTube: @routekernel\n\n"
             "Version: %s\n\n"
-            "Build year: 2026 / 1405\n\n"
             "GitHub: github.com/%s" % (PLUGIN_VERSION, REPOSITORY)
         )
         self["hint"] = Label("EXIT: Close")
