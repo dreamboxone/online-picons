@@ -13,7 +13,7 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
 
 
