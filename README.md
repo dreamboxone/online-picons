@@ -1,80 +1,83 @@
 # Online Picons for DreamOS
 
-Online Picons is an Enigma2 plugin for downloading 220x132 PNG picons from
-[`dreamboxone/online-picons`](https://github.com/dreamboxone/online-picons).
+پلاگین **Online Picons** برای دانلود و نصب پیکون‌های PNG با اندازه
+`220x132` روی گیرنده‌های Enigma2 دارای سیستم‌عامل DreamOS ساخته شده است.
 
-پلاگین Online Picons برای دانلود و نصب پیکون‌های 220x132 روی گیرنده‌های
-Enigma2 با سیستم‌عامل DreamOS ساخته شده است.
+## امکانات
 
-## Features
+- دانلود پیکون ماهواره‌های مختلف از GitHub
+- انتخاب هم‌زمان چند ماهواره
+- نمایش `X` سبز کنار ماهواره انتخاب‌شده
+- نمایش تیک سبز پس از دانلود و استخراج موفق
+- انتخاب محل ذخیره پیکون‌ها روی HDD، USB یا مسیر دلخواه
+- بررسی اتصال گیرنده به Google و GitHub با دستور Ping
+- نمایش پیام فارسی در صورت نبودن فایل یا بروز خطا
+- پشتیبانی از فایل‌های فشرده RAR
 
-- DreamOS `.deb` package
-- HDD, USB, or custom destination
-- Ping-based Google/GitHub connectivity indicator with a five-second timeout
-- Multi-selection of satellite packages
-- RAR extraction through `unrar`, `7z`, `7za`, `bsdtar`, or a RAR-capable
-  `tar`
-- Persian five-second messages when an archive is unavailable or the receiver
-  is offline
-- About page with `@routekernel`, version, and Gregorian/Persian build year
+## وضعیت اتصال
 
-## Archive naming
+در صفحه **Download Picons** وضعیت اتصال با یک دایره رنگی نمایش داده می‌شود:
 
-Place RAR archives in the repository root. Use the orbital position followed
-by `e` or `w`; keep non-zero decimal positions in the file name, for example:
-
-- `52e.rar`
-- `19.2e.rar`
-- `0.8w.rar`
-- `100.5e.rar`
-
-One of the supported RAR extraction tools must be installed on the receiver.
-
-## Build
-
-```sh
-python3 build_deb.py
-```
-
-The package is written to `dist/`.
+- سبز: اتصال به Google و GitHub برقرار است.
+- زرد: اینترنت برقرار است، اما GitHub در دسترس نیست.
+- قرمز: اتصال اینترنت برقرار نیست.
 
 ## نصب آنلاین
 
-دستور زیر را در ترمینال گیرنده اجرا کنید:
+با Telnet یا SSH وارد گیرنده شوید و دستور زیر را اجرا کنید:
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/main/install.sh | sh
 ```
 
-یا فایل DEB را مستقیماً دانلود و نصب کنید:
+همچنین می‌توانید فایل DEB را مستقیماً دانلود و نصب کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.6_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
+wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.9_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
 ```
 
 پس از نصب، Enigma2 را یک‌بار Restart کنید.
 
-## نصب لوکال از پوشه `/tmp`
+## نصب فایل DEB از پوشه `/tmp`
 
 فایل زیر را با FTP یا FileZilla به پوشه `/tmp` گیرنده انتقال دهید:
 
-`enigma2-plugin-extensions-online-picons_1.0.6_all.deb`
+`enigma2-plugin-extensions-online-picons_1.0.9_all.deb`
 
-سپس اجرا کنید:
+سپس با Telnet یا SSH دستور زیر را اجرا کنید:
 
 ```sh
-dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.6_all.deb
+dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.9_all.deb
 ```
 
-در صورت نمایش خطای وابستگی:
+در صورت نمایش خطای وابستگی، دستور زیر را اجرا کنید:
 
 ```sh
 apt-get -f install
 ```
 
-سپس Enigma2 را Restart کنید.
+پس از پایان نصب، Enigma2 را Restart کنید.
 
-## Notes
+## روش استفاده
 
-The plugin looks for `.rar` archives only. Picon archives are downloaded only
-when selected and are not embedded in the plugin package.
+1. از منوی پلاگین‌ها وارد **Online Picons** شوید.
+2. وارد **Settings** شوید و محل ذخیره پیکون‌ها را انتخاب کنید.
+3. وارد **Download Picons** شوید و منتظر نمایش وضعیت اتصال بمانید.
+4. روی نام ماهواره موردنظر دکمه OK را بزنید. کنار ماهواره انتخاب‌شده یک `X`
+   سبز نمایش داده می‌شود.
+5. برای انتخاب چند ماهواره، همین کار را روی ماهواره‌های دیگر تکرار کنید.
+6. دکمه سبز کنترل را برای شروع دانلود بزنید.
+7. پس از دانلود و استخراج موفق، کنار نام ماهواره تیک سبز نمایش داده می‌شود.
+
+برای خارج‌کردن یک ماهواره از حالت انتخاب، دوباره روی نام آن دکمه OK را بزنید.
+
+## ابزار استخراج RAR
+
+برای استخراج پیکون‌ها باید حداقل یکی از ابزارهای `unrar`، `7z`، `7za`،
+`bsdtar` یا نسخه‌ای از `tar` که از RAR پشتیبانی می‌کند، روی گیرنده نصب باشد.
+
+## درباره پلاگین
+
+- نسخه: `1.0.9`
+- YouTube: `@routekernel`
+- GitHub: [dreamboxone/online-picons](https://github.com/dreamboxone/online-picons)
