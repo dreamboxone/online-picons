@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 
 try:
     from urllib.request import Request, urlopen
@@ -18,21 +19,32 @@ except ImportError:
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
+from Components.MultiContent import (
+    MultiContentEntryPixmapAlphaTest,
+    MultiContentEntryText,
+)
 from Components.Pixmap import Pixmap
 from Components.config import ConfigSubsection, ConfigText, config, configfile
 from Plugins.Plugin import PluginDescriptor
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.VirtualKeyBoard import VirtualKeyBoard
-from enigma import eTimer, gFont
+from Tools.LoadPixmap import LoadPixmap
+from enigma import (
+    RT_HALIGN_LEFT,
+    RT_VALIGN_CENTER,
+    eListboxPythonMultiContent,
+    eTimer,
+    gFont,
+)
 
 from . import PLUGIN_VERSION
 
 
 REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
-GOOGLE_CHECK = "https://www.google.com/generate_204"
-GITHUB_CHECK = "https://github.com"
+GOOGLE_HOST = "google.com"
+GITHUB_HOST = "github.com"
 PLUGIN_PATH = os.path.dirname(os.path.abspath(__file__))
 PY2 = sys.version_info[0] == 2
 
@@ -65,6 +77,48 @@ def _set_menu_style(menu, font_size, item_height):
         menu.l.setItemHeight(item_height)
     except Exception:
         pass
+
+
+def _ping_hosts(hosts, timeout=5):
+    """Ping all hosts in parallel and never block the Enigma2 UI indefinitely."""
+    processes = {}
+    for host in hosts:
+        try:
+            processes[host] = subprocess.Popen(
+                ["ping", "-c", "1", "-W", "3", host],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except OSError:
+            processes[host] = None
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if all(process is None or process.poll() is not None
+               for process in processes.values()):
+            break
+        time.sleep(0.1)
+
+    results = {}
+    for host, process in processes.items():
+        if process is None:
+            results[host] = False
+            continue
+        if process.poll() is None:
+            try:
+                process.terminate()
+            except Exception:
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+        try:
+            process.communicate()
+        except Exception:
+            pass
+        results[host] = process.returncode == 0
+    return results
+
 
 if not hasattr(config.plugins, "onlinepicons"):
     config.plugins.onlinepicons = ConfigSubsection()
@@ -153,17 +207,8 @@ class OnlinePiconsMain(Screen):
             title="Online Picons">
         <widget name="title" position="45,30" size="810,55"
                 font="Regular;38" halign="center" />
-        <widget name="menu" position="120,115" size="660,310"
+        <widget name="menu" position="65,115" size="715,310"
                 scrollbarMode="showNever" />
-        <widget name="settingsIcon" position="65,120" size="42,42"
-                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/settings.png"
-                alphatest="blend" />
-        <widget name="downloadIcon" position="65,172" size="42,42"
-                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/download.png"
-                alphatest="blend" />
-        <widget name="aboutIcon" position="65,224" size="42,42"
-                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/about.png"
-                alphatest="blend" />
         <widget name="hint" position="45,480" size="810,38"
                 font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
     </screen>
@@ -172,21 +217,44 @@ class OnlinePiconsMain(Screen):
     def __init__(self, session):
         Screen.__init__(self, session)
         self["title"] = Label("Online Picons")
-        self["menu"] = MenuList([
-            "Settings",
-            "Download Picons",
-            "About",
-        ])
-        _set_menu_style(self["menu"], 34, 52)
-        self["settingsIcon"] = Pixmap()
-        self["downloadIcon"] = Pixmap()
-        self["aboutIcon"] = Pixmap()
+        self["menu"] = MenuList(
+            [
+                self._menu_entry("Settings", "settings.png"),
+                self._menu_entry("Download Picons", "download.png"),
+                self._menu_entry("About", "about.png"),
+            ],
+            enableWrapAround=True,
+            content=eListboxPythonMultiContent,
+        )
+        self["menu"].l.setFont(0, gFont("Regular", 34))
+        self["menu"].l.setItemHeight(58)
         self["hint"] = Label("OK: Select     EXIT: Close")
         self["actions"] = ActionMap(
             ["OkCancelActions"],
             {"ok": self.open_selected, "cancel": self.close},
             -1,
         )
+
+    def _menu_entry(self, text, icon):
+        return [
+            _menu_text(text),
+            MultiContentEntryPixmapAlphaTest(
+                pos=(8, 8),
+                size=(42, 42),
+                png=LoadPixmap(
+                    cached=True,
+                    path=os.path.join(PLUGIN_PATH, icon),
+                ),
+            ),
+            MultiContentEntryText(
+                pos=(68, 0),
+                size=(635, 58),
+                font=0,
+                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                text=_menu_text(text),
+            ),
+        ]
+
     def open_selected(self):
         index = self["menu"].getSelectedIndex()
         if index == 0:
@@ -382,21 +450,9 @@ class DownloadScreen(Screen):
         self.poll_timer.start(150, True)
 
     def _check_connectivity(self):
-        google = False
-        github = False
-        try:
-            response = _request(GOOGLE_CHECK, timeout=6)
-            google = response.getcode() in (200, 204)
-            response.close()
-        except Exception:
-            google = False
-        if google:
-            try:
-                response = _request(GITHUB_CHECK, method="HEAD", timeout=6)
-                github = response.getcode() < 500
-                response.close()
-            except Exception:
-                github = False
+        ping_results = _ping_hosts((GOOGLE_HOST, GITHUB_HOST), timeout=5)
+        google = ping_results.get(GOOGLE_HOST, False)
+        github = ping_results.get(GITHUB_HOST, False)
         if not google:
             return "offline"
         return "online" if github else "google_only"
