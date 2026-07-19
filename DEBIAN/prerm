@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+find /usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons \
+    -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete 2>/dev/null || true
+
+exit 0
+
