@@ -10,7 +10,7 @@ Enigma2 با سیستم‌عامل DreamOS ساخته شده است.
 
 - DreamOS `.deb` package
 - HDD, USB, or custom destination
-- Google/GitHub connectivity indicator
+- Ping-based Google/GitHub connectivity indicator with a five-second timeout
 - Multi-selection of satellite packages
 - RAR extraction through `unrar`, `7z`, `7za`, `bsdtar`, or a RAR-capable
   `tar`
@@ -49,7 +49,7 @@ wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/main/insta
 یا فایل DEB را مستقیماً دانلود و نصب کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.5_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
+wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.6_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
 ```
 
 پس از نصب، Enigma2 را یک‌بار Restart کنید.
@@ -58,12 +58,12 @@ wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubuserc
 
 فایل زیر را با FTP یا FileZilla به پوشه `/tmp` گیرنده انتقال دهید:
 
-`enigma2-plugin-extensions-online-picons_1.0.5_all.deb`
+`enigma2-plugin-extensions-online-picons_1.0.6_all.deb`
 
 سپس اجرا کنید:
 
 ```sh
-dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.5_all.deb
+dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.6_all.deb
 ```
 
 در صورت نمایش خطای وابستگی:
