@@ -13,7 +13,7 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
 
 
@@ -58,6 +58,61 @@ def make_plugin_icon(path):
             if 37 < x < 91 and 85 < y < 94:
                 color = (255, 255, 255, 255)
             pixels.extend(color)
+    png(path, width, height, pixels)
+
+
+def make_menu_icon(path, kind):
+    width = height = 48
+    pixels = [0] * (width * height * 4)
+
+    def set_pixel(x, y, color):
+        if 0 <= x < width and 0 <= y < height:
+            offset = (y * width + x) * 4
+            pixels[offset:offset + 4] = color
+
+    blue = (40, 132, 220, 255)
+    green = (37, 173, 96, 255)
+    white = (255, 255, 255, 255)
+    color = green if kind == "download" else blue
+
+    for y in range(height):
+        for x in range(width):
+            dx, dy = x - 24, y - 24
+            if dx * dx + dy * dy <= 21 * 21:
+                set_pixel(x, y, color)
+
+    if kind == "download":
+        for y in range(10, 29):
+            for x in range(21, 27):
+                set_pixel(x, y, white)
+        for y in range(23, 34):
+            spread = y - 23
+            for x in range(24 - spread, 25 + spread):
+                set_pixel(x, y, white)
+        for y in range(36, 40):
+            for x in range(13, 36):
+                set_pixel(x, y, white)
+    elif kind == "about":
+        for y in range(20, 36):
+            for x in range(21, 27):
+                set_pixel(x, y, white)
+        for y in range(11, 17):
+            for x in range(21, 27):
+                set_pixel(x, y, white)
+    else:
+        for y in range(14, 35):
+            for x in range(14, 35):
+                dx, dy = x - 24, y - 24
+                if 9 * 9 <= dx * dx + dy * dy <= 12 * 12:
+                    set_pixel(x, y, white)
+        for start_x, start_y, end_x, end_y in (
+            (21, 7, 27, 15), (21, 33, 27, 41),
+            (7, 21, 15, 27), (33, 21, 41, 27),
+        ):
+            for y in range(start_y, end_y):
+                for x in range(start_x, end_x):
+                    set_pixel(x, y, white)
+
     png(path, width, height, pixels)
 
 
@@ -118,6 +173,9 @@ def main():
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
     )
     make_plugin_icon(os.path.join(plugin_stage, "plugin.png"))
+    make_menu_icon(os.path.join(plugin_stage, "settings.png"), "settings")
+    make_menu_icon(os.path.join(plugin_stage, "download.png"), "download")
+    make_menu_icon(os.path.join(plugin_stage, "about.png"), "about")
 
     control_entries = []
     for name in ("control", "postinst", "prerm"):
