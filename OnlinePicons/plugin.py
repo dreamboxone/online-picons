@@ -2,13 +2,13 @@
 from __future__ import print_function
 
 import os
+import re
 import shutil
 import socket
 import subprocess
 import sys
 import tempfile
 import threading
-import time
 
 try:
     from urllib.request import Request, urlopen
@@ -17,6 +17,7 @@ except ImportError:
     from urllib2 import Request, urlopen, HTTPError
 
 from Components.ActionMap import ActionMap
+from Components.Console import Console
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import (
@@ -30,6 +31,7 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.VirtualKeyBoard import VirtualKeyBoard
 from Tools.LoadPixmap import LoadPixmap
+from twisted.internet import reactor
 from enigma import (
     RT_HALIGN_LEFT,
     RT_VALIGN_CENTER,
@@ -79,47 +81,6 @@ def _set_menu_style(menu, font_size, item_height):
         pass
 
 
-def _ping_hosts(hosts, timeout=5):
-    """Ping all hosts in parallel and never block the Enigma2 UI indefinitely."""
-    processes = {}
-    for host in hosts:
-        try:
-            processes[host] = subprocess.Popen(
-                ["ping", "-c", "1", "-W", "3", host],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-        except OSError:
-            processes[host] = None
-
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if all(process is None or process.poll() is not None
-               for process in processes.values()):
-            break
-        time.sleep(0.1)
-
-    results = {}
-    for host, process in processes.items():
-        if process is None:
-            results[host] = False
-            continue
-        if process.poll() is None:
-            try:
-                process.terminate()
-            except Exception:
-                try:
-                    process.kill()
-                except Exception:
-                    pass
-        try:
-            process.communicate()
-        except Exception:
-            pass
-        results[host] = process.returncode == 0
-    return results
-
-
 if not hasattr(config.plugins, "onlinepicons"):
     config.plugins.onlinepicons = ConfigSubsection()
 config.plugins.onlinepicons.destination = ConfigText(
@@ -132,7 +93,6 @@ SATELLITES = [
     ("Picons-220x132-22°W (SES 4)", "22w"),
     ("Picons-220x132-15°W (Telstar 12)", "15w"),
     ("Picons-220x132-14°W (Express AM8)", "14w"),
-    ("Picons-220x132-14°W (Express AM44)", "14w"),
     ("Picons-220x132-8°W (Eutelsat 8W)", "8w"),
     ("Picons-220x132-7°W (Nilesat 201/301/7W)", "7w"),
     ("Picons-220x132-5°W (Eutelsat 5W)", "5w"),
@@ -201,6 +161,19 @@ def _find_archive(stem):
     return url if _url_exists(url) else None
 
 
+def _archive_stem(title):
+    """Derive the RAR name from the orbital position in the visible title."""
+    match = re.search(r"Picons-220x132-([0-9]+(?:\.[0-9]+)?)", title)
+    if not match:
+        return None
+    position = match.group(1)
+    if "." in position:
+        position = position.rstrip("0").rstrip(".")
+    orbital_token = title[match.end():].split(" ", 1)[0].upper()
+    direction = "e" if "E" in orbital_token else "w"
+    return position + direction
+
+
 class OnlinePiconsMain(Screen):
     skin = """
     <screen name="OnlinePiconsMain" position="center,center" size="900,560"
@@ -226,8 +199,8 @@ class OnlinePiconsMain(Screen):
             enableWrapAround=True,
             content=eListboxPythonMultiContent,
         )
-        self["menu"].l.setFont(0, gFont("Regular", 34))
-        self["menu"].l.setItemHeight(58)
+        self["menu"].l.setFont(0, gFont("Regular", 38))
+        self["menu"].l.setItemHeight(64)
         self["hint"] = Label("OK: Select     EXIT: Close")
         self["actions"] = ActionMap(
             ["OkCancelActions"],
@@ -240,15 +213,15 @@ class OnlinePiconsMain(Screen):
             _menu_text(text),
             MultiContentEntryPixmapAlphaTest(
                 pos=(8, 8),
-                size=(42, 42),
+                size=(48, 48),
                 png=LoadPixmap(
                     cached=True,
                     path=os.path.join(PLUGIN_PATH, icon),
                 ),
             ),
             MultiContentEntryText(
-                pos=(68, 0),
-                size=(635, 58),
+                pos=(76, 0),
+                size=(627, 64),
                 font=0,
                 flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
                 text=_menu_text(text),
@@ -369,13 +342,13 @@ class DownloadScreen(Screen):
     skin = """
     <screen name="DownloadScreen" position="center,center" size="1180,690"
             title="Online Picons - Download Picons">
-        <widget name="online" position="35,22" size="105,45"
-                font="Regular;27" />
-        <widget name="onlineDot" position="145,27" size="28,28"
+        <widget name="online" position="35,15" size="105,45"
+                font="Regular;27" valign="center" />
+        <widget name="onlineDot" position="145,21" size="32,32"
                 pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/dot-checking.png"
                 alphatest="blend" />
-        <widget name="connection" position="185,22" size="280,45"
-                font="Regular;23" />
+        <widget name="connection" position="185,15" size="280,45"
+                font="Regular;23" valign="center" />
         <widget name="destination" position="470,25" size="675,38"
                 font="Regular;21" halign="right" foregroundColor="#aaaaaa" />
         <widget name="satellites" position="35,85" size="1110,490"
@@ -390,19 +363,32 @@ class DownloadScreen(Screen):
     def __init__(self, session):
         Screen.__init__(self, session)
         self.selected = {}
+        self.completed = set()
         self.available_urls = {}
         self.busy = False
         self.connectivity = "checking"
-        self.result_queue = []
-        self.poll_timer = eTimer()
+        self.connectivity_check_done = False
+        self.ping_pending = set()
+        self.ping_results = {}
+        self.ping_console = Console()
+        self.ping_timeout_timer = eTimer()
+        self.probe_console = Console()
+        self.probe_timeout_timer = eTimer()
+        self.active_probe = None
+        self.screen_closed = False
         self["online"] = Label("Online")
         self["onlineDot"] = Pixmap()
         self["connection"] = Label("Checking...")
         self["destination"] = Label(
             "Destination: %s" % config.plugins.onlinepicons.destination.value
         )
-        self["satellites"] = MenuList([])
-        _set_menu_style(self["satellites"], 28, 40)
+        self["satellites"] = MenuList(
+            [],
+            enableWrapAround=True,
+            content=eListboxPythonMultiContent,
+        )
+        self["satellites"].l.setFont(0, gFont("Regular", 32))
+        self["satellites"].l.setItemHeight(46)
         self["status"] = Label("Checking internet connection...")
         self["keys"] = Label("OK: Select/Unselect     GREEN: Download     EXIT: Back")
         self["actions"] = ActionMap(
@@ -416,12 +402,24 @@ class DownloadScreen(Screen):
         )
         self.onClose.append(self._cleanup)
         self.refresh_list()
-        _timer_start(self.poll_timer, 150, self.poll_results)
-        self._run_background("connectivity", self._check_connectivity)
+        self._start_connectivity_check()
 
     def _cleanup(self):
+        self.screen_closed = True
         try:
-            self.poll_timer.stop()
+            self.ping_timeout_timer.stop()
+        except Exception:
+            pass
+        try:
+            self.probe_timeout_timer.stop()
+        except Exception:
+            pass
+        try:
+            self.ping_console.killAll()
+        except Exception:
+            pass
+        try:
+            self.probe_console.killAll()
         except Exception:
             pass
 
@@ -429,33 +427,87 @@ class DownloadScreen(Screen):
         def runner():
             try:
                 result = function(*args)
-                self.result_queue.append((kind, True, result))
+                success = True
             except Exception as error:
-                self.result_queue.append((kind, False, str(error)))
+                success = False
+                result = str(error)
+            reactor.callFromThread(
+                self._background_finished,
+                kind,
+                success,
+                result,
+            )
         thread = threading.Thread(target=runner)
         thread.daemon = True
         thread.start()
 
-    def poll_results(self):
-        while self.result_queue:
-            kind, success, result = self.result_queue.pop(0)
-            if kind == "connectivity":
-                self._show_connectivity(result if success else "offline")
-            elif kind == "probe":
-                self.busy = False
-                self._probe_finished(success, result)
-            elif kind == "download":
-                self.busy = False
-                self._download_finished(success, result)
-        self.poll_timer.start(150, True)
+    def _background_finished(self, kind, success, result):
+        if self.screen_closed:
+            return
+        if kind == "download":
+            self.busy = False
+            self._download_finished(success, result)
 
-    def _check_connectivity(self):
-        ping_results = _ping_hosts((GOOGLE_HOST, GITHUB_HOST), timeout=5)
-        google = ping_results.get(GOOGLE_HOST, False)
-        github = ping_results.get(GITHUB_HOST, False)
+    def _start_connectivity_check(self):
+        self.ping_pending = set(("google", "github"))
+        commands = (
+            ("google", "ping -c 1 -W 3 %s" % GOOGLE_HOST),
+            ("github", "ping -c 1 -W 3 %s" % GITHUB_HOST),
+        )
+        _timer_start(
+            self.ping_timeout_timer,
+            6000,
+            self._ping_check_timed_out,
+        )
+        for key, command in commands:
+            try:
+                self.ping_console.ePopen(
+                    command,
+                    self._ping_finished,
+                    [key],
+                )
+            except Exception:
+                self.ping_results[key] = False
+                self.ping_pending.discard(key)
+        if not self.ping_pending:
+            self._finish_connectivity_check()
+
+    def _ping_finished(self, output, return_code, extra_args):
+        if self.connectivity_check_done:
+            return
+        key = extra_args[0]
+        self.ping_results[key] = return_code == 0
+        self.ping_pending.discard(key)
+        if not self.ping_pending:
+            self._finish_connectivity_check()
+
+    def _ping_check_timed_out(self):
+        if self.connectivity_check_done:
+            return
+        for key in self.ping_pending:
+            self.ping_results[key] = False
+        self.ping_pending.clear()
+        self._finish_connectivity_check()
+        try:
+            self.ping_console.killAll()
+        except Exception:
+            pass
+
+    def _finish_connectivity_check(self):
+        if self.connectivity_check_done:
+            return
+        self.connectivity_check_done = True
+        try:
+            self.ping_timeout_timer.stop()
+        except Exception:
+            pass
+        google = self.ping_results.get("google", False)
+        github = self.ping_results.get("github", False)
         if not google:
-            return "offline"
-        return "online" if github else "google_only"
+            state = "offline"
+        else:
+            state = "online" if github else "google_only"
+        self._show_connectivity(state)
 
     def _show_connectivity(self, state):
         self.connectivity = state
@@ -480,14 +532,50 @@ class DownloadScreen(Screen):
     def refresh_list(self):
         index = self["satellites"].getSelectedIndex()
         rows = []
-        for title, stem in SATELLITES:
+        for title, configured_stem in SATELLITES:
+            stem = _archive_stem(title) or configured_stem
             display_title = title
             if PY2 and isinstance(display_title, str):
                 display_title = display_title.decode("utf-8")
-            rows.append(_menu_text(u"%s  %s" % (
-                "[X]" if stem in self.selected else "[ ]",
-                display_title,
-            )))
+            selected = stem in self.selected
+            row = [_menu_text(stem)]
+            if selected:
+                row.append(MultiContentEntryText(
+                    pos=(6, 0),
+                    size=(34, 46),
+                    font=0,
+                    flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                    text=_menu_text("X"),
+                    color=0x00FF00,
+                    color_sel=0x00FF00,
+                ))
+            elif stem in self.completed:
+                row.append(MultiContentEntryPixmapAlphaTest(
+                    pos=(5, 7),
+                    size=(32, 32),
+                    png=LoadPixmap(
+                        cached=True,
+                        path=os.path.join(PLUGIN_PATH, "check.png"),
+                    ),
+                ))
+            else:
+                row.append(MultiContentEntryText(
+                    pos=(6, 0),
+                    size=(34, 46),
+                    font=0,
+                    flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                    text=_menu_text(""),
+                ))
+            row.append(
+                MultiContentEntryText(
+                    pos=(42, 0),
+                    size=(1055, 46),
+                    font=0,
+                    flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                    text=_menu_text(display_title),
+                )
+            )
+            rows.append(row)
         self["satellites"].setList(rows)
         self["satellites"].moveToIndex(index)
 
@@ -503,28 +591,64 @@ class DownloadScreen(Screen):
             )
             return
         index = self["satellites"].getSelectedIndex()
-        title, stem = SATELLITES[index]
+        title, configured_stem = SATELLITES[index]
+        stem = _archive_stem(title) or configured_stem
         if stem in self.selected:
             del self.selected[stem]
             self.refresh_list()
             return
+        if stem in self.available_urls:
+            self.selected[stem] = title
+            self.refresh_list()
+            self["status"].setText("Selected: %s" % title)
+            return
         self.busy = True
         self["status"].setText("Checking GitHub for %s..." % title)
-        self._run_background("probe", self._probe_archive, index, title, stem)
+        url = "%s/%s.rar" % (RAW_BASE, stem)
+        self.active_probe = (index, title, stem, url)
+        _timer_start(
+            self.probe_timeout_timer,
+            1900,
+            self._probe_timed_out,
+        )
+        try:
+            self.probe_console.ePopen(
+                "wget -q --spider -T 2 %s" % url,
+                self._probe_command_finished,
+                [],
+            )
+        except Exception:
+            self._finish_probe(False)
 
-    def _probe_archive(self, index, title, stem):
-        url = self.available_urls.get(stem) or _find_archive(stem)
-        return index, title, stem, url
+    def _probe_command_finished(self, output, return_code, extra_args):
+        if self.active_probe is not None:
+            self._finish_probe(return_code == 0)
 
-    def _probe_finished(self, success, result):
-        if not success:
-            self["status"].setText("GitHub check failed")
+    def _probe_timed_out(self):
+        if self.active_probe is None:
             return
-        index, title, stem, url = result
-        if not url:
+        self._finish_probe(False)
+        try:
+            self.probe_console.killAll()
+        except Exception:
+            pass
+
+    def _finish_probe(self, available):
+        if self.active_probe is None:
+            return
+        try:
+            self.probe_timeout_timer.stop()
+        except Exception:
+            pass
+        index, title, stem, url = self.active_probe
+        self.active_probe = None
+        self.busy = False
+        if not available:
             self.session.open(
                 MessageBox,
-                "این پیکون وجود ندارد؛ لطفاً بعداً برای دانلود مراجعه کنید.",
+                _menu_text(
+                    u"این فایل فعلاً وجود ندارد؛ لطفاً بعداً مراجعه نمایید."
+                ),
                 MessageBox.TYPE_INFO,
                 timeout=5,
             )
@@ -566,6 +690,7 @@ class DownloadScreen(Screen):
         if not os.path.isdir(destination):
             os.makedirs(destination)
         installed = 0
+        completed_stems = []
         temp_root = tempfile.mkdtemp(prefix="online-picons-", dir="/tmp")
         try:
             for stem in stems:
@@ -593,7 +718,8 @@ class DownloadScreen(Screen):
                                 os.path.join(destination, filename),
                             )
                             installed += 1
-            return installed, destination
+                completed_stems.append(stem)
+            return installed, destination, completed_stems
         finally:
             shutil.rmtree(temp_root, ignore_errors=True)
 
@@ -621,7 +747,7 @@ class DownloadScreen(Screen):
 
     def _download_finished(self, success, result):
         if success:
-            count, destination = result
+            count, destination, completed_stems = result
             self["status"].setText("Download completed: %d PNG files" % count)
             self.session.open(
                 MessageBox,
@@ -630,6 +756,7 @@ class DownloadScreen(Screen):
                 MessageBox.TYPE_INFO,
                 timeout=7,
             )
+            self.completed.update(completed_stems)
             self.selected = {}
             self.refresh_list()
         else:
