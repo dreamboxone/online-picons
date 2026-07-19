@@ -13,7 +13,7 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.9"
+VERSION = "1.0.11"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
 
 
@@ -42,22 +42,98 @@ def png(path, width, height, pixels):
 
 def make_plugin_icon(path):
     width = height = 128
-    pixels = []
+    pixels = [0] * (width * height * 4)
+
+    def set_pixel(x, y, color):
+        if 0 <= x < width and 0 <= y < height:
+            offset = (y * width + x) * 4
+            pixels[offset:offset + 4] = color
+
+    blue = (10, 62, 154, 255)
+    cyan = (0, 210, 245, 255)
+    white = (255, 255, 255, 255)
+    green = (65, 225, 40, 255)
+
+    # Rounded blue badge.
     for y in range(height):
         for x in range(width):
-            dx, dy = x - 64, y - 64
-            radius = (dx * dx + dy * dy) ** 0.5
-            if radius < 52:
-                color = (27, 126, 214, 255)
-            else:
-                color = (0, 0, 0, 0)
-            if 48 < x < 80 and 27 < y < 74:
-                color = (255, 255, 255, 255)
-            if 38 < x < 90 and 65 < y < 78 and abs(x - 64) < (78 - y) * 2:
-                color = (255, 255, 255, 255)
-            if 37 < x < 91 and 85 < y < 94:
-                color = (255, 255, 255, 255)
-            pixels.extend(color)
+            nearest_x = min(max(x, 14), 113)
+            nearest_y = min(max(y, 14), 113)
+            if (x - nearest_x) ** 2 + (y - nearest_y) ** 2 <= 14 ** 2:
+                set_pixel(x, y, blue)
+
+    # Satellite dish and broadcast waves.
+    for y in range(18, 68):
+        for x in range(15, 66):
+            dx, dy = x - 23, y - 20
+            if 25 ** 2 <= dx * dx + dy * dy <= 31 ** 2 and x + y < 94:
+                set_pixel(x, y, white)
+    for x in range(34, 70):
+        set_pixel(x, 62, cyan)
+        set_pixel(x, 63, cyan)
+    for radius in (18, 28, 38):
+        for y in range(8, 58):
+            for x in range(56, 108):
+                dx, dy = x - 57, y - 57
+                distance = (dx * dx + dy * dy) ** 0.5
+                if abs(distance - radius) < 1.3 and x >= 57 and y <= 57:
+                    set_pixel(x, y, cyan)
+    for y in range(21, 34):
+        for x in range(98, 111):
+            if (x - 104) ** 2 + (y - 27) ** 2 <= 6 ** 2:
+                set_pixel(x, y, green)
+
+    # Exact PICONS word in a compact 5x7 bitmap font.
+    glyphs = {
+        "P": ("11110", "10001", "10001", "11110", "10000", "10000", "10000"),
+        "I": ("11111", "00100", "00100", "00100", "00100", "00100", "11111"),
+        "C": ("01111", "10000", "10000", "10000", "10000", "10000", "01111"),
+        "O": ("01110", "10001", "10001", "10001", "10001", "10001", "01110"),
+        "N": ("10001", "11001", "11001", "10101", "10011", "10011", "10001"),
+        "S": ("01111", "10000", "10000", "01110", "00001", "00001", "11110"),
+    }
+    scale = 3
+    start_x = 10
+    start_y = 88
+    for letter in "PICONS":
+        for row, bits in enumerate(glyphs[letter]):
+            for column, bit in enumerate(bits):
+                if bit == "1":
+                    for yy in range(scale):
+                        for xx in range(scale):
+                            set_pixel(
+                                start_x + column * scale + xx,
+                                start_y + row * scale + yy,
+                                white,
+                            )
+        start_x += 19
+    png(path, width, height, pixels)
+
+
+def make_youtube_icon(path):
+    width, height = 120, 68
+    pixels = [0] * (width * height * 4)
+
+    def set_pixel(x, y, color):
+        if 0 <= x < width and 0 <= y < height:
+            offset = (y * width + x) * 4
+            pixels[offset:offset + 4] = color
+
+    red = (255, 0, 0, 255)
+    white = (255, 255, 255, 255)
+    for y in range(height):
+        for x in range(width):
+            nearest_x = min(max(x, 15), width - 16)
+            nearest_y = min(max(y, 12), height - 13)
+            if (x - nearest_x) ** 2 + (y - nearest_y) ** 2 <= 12 ** 2:
+                set_pixel(x, y, red)
+    for y in range(18, 51):
+        half_width = (y - 18) // 2 if y <= 34 else (50 - y) // 2
+        for x in range(48, 49 + max(0, half_width)):
+            set_pixel(x, y, white)
+        for x in range(49, 82 - abs(y - 34)):
+            if x <= 49 + (y - 18):
+                set_pixel(x, y, white)
     png(path, width, height, pixels)
 
 
@@ -213,6 +289,7 @@ def main():
     make_dot_icon(os.path.join(plugin_stage, "dot-yellow.png"), (235, 190, 20, 255))
     make_dot_icon(os.path.join(plugin_stage, "dot-green.png"), (35, 190, 90, 255))
     make_check_icon(os.path.join(plugin_stage, "check.png"))
+    make_youtube_icon(os.path.join(plugin_stage, "youtube.png"))
 
     control_entries = []
     for name in ("control", "postinst", "prerm"):

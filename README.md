@@ -5,7 +5,7 @@
 
 ## امکانات
 
-- دانلود پیکون ماهواره‌های مختلف از همین کیتهاب
+- دانلود پیکون ماهواره‌های مختلف از GitHub
 - انتخاب هم‌زمان چند ماهواره
 - نمایش `X` سبز کنار ماهواره انتخاب‌شده
 - نمایش تیک سبز پس از دانلود و استخراج موفق
@@ -33,7 +33,7 @@ wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/main/insta
 همچنین می‌توانید فایل DEB را مستقیماً دانلود و نصب کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.9_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
+wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.11_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
 ```
 
 پس از نصب، Enigma2 را یک‌بار Restart کنید.
@@ -42,18 +42,12 @@ wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubuserc
 
 فایل زیر را با FTP یا FileZilla به پوشه `/tmp` گیرنده انتقال دهید:
 
-`enigma2-plugin-extensions-online-picons_1.0.9_all.deb`
+`enigma2-plugin-extensions-online-picons_1.0.11_all.deb`
 
 سپس با Telnet یا SSH دستور زیر را اجرا کنید:
 
 ```sh
-dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.9_all.deb
-```
-
-در صورت نمایش خطای وابستگی، دستور زیر را اجرا کنید:
-
-```sh
-apt-get -f install
+dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.11_all.deb
 ```
 
 پس از پایان نصب، Enigma2 را Restart کنید.
@@ -71,13 +65,8 @@ apt-get -f install
 
 برای خارج‌کردن یک ماهواره از حالت انتخاب، دوباره روی نام آن دکمه OK را بزنید.
 
-## ابزار استخراج RAR
-
-برای استخراج پیکون‌ها باید حداقل یکی از ابزارهای `unrar`، `7z`، `7za`،
-`bsdtar` یا نسخه‌ای از `tar` که از RAR پشتیبانی می‌کند، روی گیرنده نصب باشد.
-
 ## درباره پلاگین
 
-- نسخه: `1.0.9`
+- نسخه: `1.0.11`
 - YouTube: `@routekernel`
 - GitHub: [dreamboxone/online-picons](https://github.com/dreamboxone/online-picons)
