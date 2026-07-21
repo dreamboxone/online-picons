@@ -4,7 +4,7 @@ set -e
 REPOSITORY="dreamboxone/online-picons"
 VERSION="1.0.12"
 DEB_NAME="enigma2-plugin-extensions-online-picons_${VERSION}_all.deb"
-DEB_URL="https://raw.githubusercontent.com/${REPOSITORY}/main/releases/${DEB_NAME}"
+DEB_URL="https://github.com/${REPOSITORY}/releases/download/v${VERSION}/${DEB_NAME}"
 TMP_DEB="/tmp/enigma2-plugin-extensions-online-picons.deb"
 SETUP_LOG="/tmp/online-picons-setup.log"
 
