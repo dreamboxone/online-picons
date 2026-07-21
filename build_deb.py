@@ -352,8 +352,7 @@ def main():
     make_dot_icon(os.path.join(plugin_stage, "dot-yellow.png"), (235, 190, 20, 255))
     make_dot_icon(os.path.join(plugin_stage, "dot-green.png"), (35, 190, 90, 255))
     make_check_icon(os.path.join(plugin_stage, "check.png"))
-    make_youtube_icon(os.path.join(plugin_stage, "youtube.png"))
-    make_telegram_icon(os.path.join(plugin_stage, "telegram.png"))
+    # Social logos are maintained as source assets in OnlinePicons/.
 
     control_stage = os.path.join(staging, "control")
     os.makedirs(control_stage)
