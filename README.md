@@ -27,7 +27,7 @@
 با Telnet یا SSH وارد گیرنده شوید و دستور زیر را اجرا کنید:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/main/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/refs/heads/main/install.sh | sh
 ```
 
 همچنین می‌توانید فایل DEB را مستقیماً دانلود و نصب کنید:
