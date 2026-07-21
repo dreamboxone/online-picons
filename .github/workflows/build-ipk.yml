@@ -1,0 +1,32 @@
+name: Build Enigma2 IPK Package
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-ipk:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Environment & Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y binutils tar gzip
+
+    - name: Build IPK Package (OE2.0)
+      run: |
+        chmod +x build_ipk.sh
+        ./build_ipk.sh
+
+    - name: Upload IPK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: IPK-Package
+        path: "*.ipk"
