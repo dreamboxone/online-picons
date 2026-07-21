@@ -4,6 +4,8 @@
 import gzip
 import io
 import os
+import argparse
+import re
 import shutil
 import struct
 import tarfile
@@ -13,8 +15,19 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.11"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
+
+
+def plugin_version():
+    version_file = os.path.join(ROOT, "OnlinePicons", "__init__.py")
+    with open(version_file, "r", encoding="utf-8") as source:
+        match = re.search(r'^PLUGIN_VERSION\s*=\s*["\']([^"\']+)["\']', source.read(), re.M)
+    if not match:
+        raise RuntimeError("PLUGIN_VERSION is missing from OnlinePicons/__init__.py")
+    return match.group(1)
+
+
+VERSION = plugin_version()
 
 
 def png(path, width, height, pixels):
@@ -271,6 +284,14 @@ def ar_member(name, data, timestamp=0, mode=0o100644):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Build Online Picons packages")
+    parser.add_argument(
+        "--format",
+        choices=("deb", "ipk", "all"),
+        default="deb",
+        help="package format to build (default: deb)",
+    )
+    args = parser.parse_args()
     staging = os.path.join(ROOT, ".build")
     shutil.rmtree(staging, ignore_errors=True)
     os.makedirs(staging)
@@ -291,10 +312,23 @@ def main():
     make_check_icon(os.path.join(plugin_stage, "check.png"))
     make_youtube_icon(os.path.join(plugin_stage, "youtube.png"))
 
+    control_stage = os.path.join(staging, "control")
+    os.makedirs(control_stage)
     control_entries = []
     for name in ("control", "postinst", "prerm"):
         mode = 0o755 if name in ("postinst", "prerm") else 0o644
-        control_entries.append((name, os.path.join(ROOT, "DEBIAN", name), mode))
+        source = os.path.join(ROOT, "DEBIAN", name)
+        target = os.path.join(control_stage, name)
+        shutil.copy2(source, target)
+        if name == "control":
+            with open(target, "r", encoding="utf-8") as control_file:
+                control = control_file.read()
+            control = re.sub(
+                r"^Version:\s*.*$", "Version: " + VERSION, control, flags=re.M
+            )
+            with open(target, "w", encoding="utf-8", newline="\n") as control_file:
+                control_file.write(control)
+        control_entries.append((name, target, mode))
 
     data_entries = []
     for name in sorted(os.listdir(plugin_stage)):
@@ -318,16 +352,21 @@ def main():
     ]
     data_tar = make_tar(data_entries, directories=data_directories)
     os.makedirs(OUTPUT, exist_ok=True)
-    output_path = os.path.join(
-        OUTPUT, "%s_%s_all.deb" % (PACKAGE, VERSION)
-    )
-    with open(output_path, "wb") as package:
-        package.write(b"!<arch>\n")
-        package.write(ar_member("debian-binary", b"2.0\n"))
-        package.write(ar_member("control.tar.gz", control_tar))
-        package.write(ar_member("data.tar.gz", data_tar))
+    formats = ("deb", "ipk") if args.format == "all" else (args.format,)
+    output_paths = []
+    for package_format in formats:
+        output_path = os.path.join(
+            OUTPUT, "%s_%s_all.%s" % (PACKAGE, VERSION, package_format)
+        )
+        with open(output_path, "wb") as package:
+            package.write(b"!<arch>\n")
+            package.write(ar_member("debian-binary", b"2.0\n"))
+            package.write(ar_member("control.tar.gz", control_tar))
+            package.write(ar_member("data.tar.gz", data_tar))
+        output_paths.append(output_path)
     shutil.rmtree(staging, ignore_errors=True)
-    print(output_path)
+    for output_path in output_paths:
+        print(output_path)
 
 
 if __name__ == "__main__":
