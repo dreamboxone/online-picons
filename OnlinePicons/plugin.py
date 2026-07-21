@@ -25,7 +25,14 @@ from Components.MultiContent import (
     MultiContentEntryText,
 )
 from Components.Pixmap import Pixmap
-from Components.config import ConfigSubsection, ConfigText, config, configfile
+from Components.ProgressBar import ProgressBar
+from Components.config import (
+    ConfigSelection,
+    ConfigSubsection,
+    ConfigText,
+    config,
+    configfile,
+)
 from Plugins.Plugin import PluginDescriptor
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
@@ -86,6 +93,115 @@ if not hasattr(config.plugins, "onlinepicons"):
 config.plugins.onlinepicons.destination = ConfigText(
     default="/media/hdd/picon", fixed_size=False
 )
+config.plugins.onlinepicons.language = ConfigSelection(
+    default="en",
+    choices=[("en", "English"), ("fa", "فارسی"), ("ar", "العربية")],
+)
+
+
+TRANSLATIONS = {
+    "fa": {
+        "Settings": "تنظیمات",
+        "Download Picons": "دانلود پیکون‌ها",
+        "Online Picons - Settings": "آنلاین پیکونز - تنظیمات",
+        "Online Picons - Download Picons": "آنلاین پیکونز - دانلود پیکون‌ها",
+        "Language": "زبان",
+        "About": "درباره",
+        "GREEN": "سبز",
+        "OK: Select     EXIT: Close": "OK: انتخاب     EXIT: بستن",
+        "Choose language": "انتخاب زبان",
+        "OK: Select     EXIT: Back": "OK: انتخاب     EXIT: بازگشت",
+        "Choose the destination for downloaded picons": "مسیر ذخیره پیکون‌های دانلودشده را انتخاب کنید",
+        "Custom path": "مسیر دلخواه",
+        "OK: Select     BLUE: Edit custom path     ": "OK: انتخاب     BLUE: ویرایش مسیر دلخواه     ",
+        ": Save": ": ذخیره",
+        "Enter picon destination path": "مسیر ذخیره پیکون را وارد کنید",
+        "The path must start with /": "مسیر باید با / شروع شود",
+        "Picon destination saved:\n%s": "مسیر پیکون ذخیره شد:\n%s",
+        "Internet": "اینترنت",
+        "Checking...": "در حال بررسی...",
+        "Destination: %s": "مسیر: %s",
+        "Checking internet connection...": "در حال بررسی اتصال اینترنت...",
+        "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
+        ": Download     EXIT: Back": ": دانلود     EXIT: بازگشت",
+        "Online": "آنلاین",
+        "Connected to Google and GitHub": "اتصال به گوگل و گیت‌هاب برقرار است",
+        "Limited Internet": "اینترنت محدود",
+        "Internet works, but GitHub is unavailable": "اینترنت برقرار است، اما گیت‌هاب در دسترس نیست",
+        "Offline": "آفلاین",
+        "No internet connection": "اتصال اینترنت برقرار نیست",
+        "Downloading is unavailable without an internet connection.": "بدون اتصال اینترنت امکان دانلود پیکون وجود ندارد.",
+        "Selected: %s": "انتخاب شد: %s",
+        "Checking GitHub for %s...": "در حال بررسی %s در گیت‌هاب...",
+        "This file is not uploaded yet. Please try again later.": "این فایل هنوز بارگذاری نشده است. لطفاً بعداً دوباره تلاش کنید.",
+        "Archive not available: %s": "فایل در دسترس نیست: %s",
+        "Select at least one satellite first.": "ابتدا حداقل یک ماهواره را انتخاب کنید.",
+        "Preparing download support...": "در حال آماده‌سازی ابزار دانلود...",
+        "Download preparation failed": "آماده‌سازی دانلود ناموفق بود",
+        "Download support could not be prepared. Check the internet connection and try again.": "ابزار دانلود آماده نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.",
+        "Downloading selected picons...": "در حال دانلود پیکون‌های انتخاب‌شده...",
+        "Downloading: %d%% (%d/%d)": "در حال دانلود: ٪%d (%d/%d)",
+        "Download completed: %d PNG files": "دانلود کامل شد: %d فایل PNG",
+        "Download finished.\n%d files were copied to:\n%s": "دانلود تمام شد.\n%d فایل در مسیر زیر کپی شد:\n%s",
+        "Download failed": "دانلود ناموفق بود",
+        "The picons could not be downloaded or prepared. Please try again.": "دانلود یا آماده‌سازی پیکون‌ها انجام نشد. لطفاً دوباره تلاش کنید.",
+        "Version: %s": "نسخه: %s",
+        "EXIT: Close": "EXIT: بستن",
+    },
+    "ar": {
+        "Settings": "الإعدادات",
+        "Download Picons": "تنزيل الأيقونات",
+        "Online Picons - Settings": "Online Picons - الإعدادات",
+        "Online Picons - Download Picons": "Online Picons - تنزيل الأيقونات",
+        "Language": "اللغة",
+        "About": "حول",
+        "GREEN": "أخضر",
+        "OK: Select     EXIT: Close": "OK: اختيار     EXIT: إغلاق",
+        "Choose language": "اختر اللغة",
+        "OK: Select     EXIT: Back": "OK: اختيار     EXIT: رجوع",
+        "Choose the destination for downloaded picons": "اختر مسار حفظ الأيقونات التي تم تنزيلها",
+        "Custom path": "مسار مخصص",
+        "OK: Select     BLUE: Edit custom path     ": "OK: اختيار     BLUE: تعديل المسار     ",
+        ": Save": ": حفظ",
+        "Enter picon destination path": "أدخل مسار حفظ الأيقونات",
+        "The path must start with /": "يجب أن يبدأ المسار بـ /",
+        "Picon destination saved:\n%s": "تم حفظ مسار الأيقونات:\n%s",
+        "Internet": "الإنترنت",
+        "Checking...": "جارٍ التحقق...",
+        "Destination: %s": "المسار: %s",
+        "Checking internet connection...": "جارٍ التحقق من اتصال الإنترنت...",
+        "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
+        ": Download     EXIT: Back": ": تنزيل     EXIT: رجوع",
+        "Online": "متصل",
+        "Connected to Google and GitHub": "تم الاتصال بـ Google وGitHub",
+        "Limited Internet": "اتصال محدود",
+        "Internet works, but GitHub is unavailable": "الإنترنت يعمل، لكن GitHub غير متاح",
+        "Offline": "غير متصل",
+        "No internet connection": "لا يوجد اتصال بالإنترنت",
+        "Downloading is unavailable without an internet connection.": "لا يمكن التنزيل بدون اتصال بالإنترنت.",
+        "Selected: %s": "تم الاختيار: %s",
+        "Checking GitHub for %s...": "جارٍ التحقق من %s على GitHub...",
+        "This file is not uploaded yet. Please try again later.": "لم يتم رفع هذا الملف بعد. يرجى المحاولة لاحقاً.",
+        "Archive not available: %s": "الملف غير متاح: %s",
+        "Select at least one satellite first.": "اختر قمراً صناعياً واحداً على الأقل أولاً.",
+        "Preparing download support...": "جارٍ إعداد أدوات التنزيل...",
+        "Download preparation failed": "فشل إعداد التنزيل",
+        "Download support could not be prepared. Check the internet connection and try again.": "تعذر إعداد أدوات التنزيل. تحقق من الإنترنت وحاول مرة أخرى.",
+        "Downloading selected picons...": "جارٍ تنزيل الأيقونات المختارة...",
+        "Downloading: %d%% (%d/%d)": "جارٍ التنزيل: %d%% (%d/%d)",
+        "Download completed: %d PNG files": "اكتمل التنزيل: %d ملف PNG",
+        "Download finished.\n%d files were copied to:\n%s": "اكتمل التنزيل.\nتم نسخ %d ملف إلى:\n%s",
+        "Download failed": "فشل التنزيل",
+        "The picons could not be downloaded or prepared. Please try again.": "تعذر تنزيل الأيقونات أو إعدادها. يرجى المحاولة مرة أخرى.",
+        "Version: %s": "الإصدار: %s",
+        "EXIT: Close": "EXIT: إغلاق",
+    },
+}
+
+
+def tr(message):
+    language = config.plugins.onlinepicons.language.value
+    return TRANSLATIONS.get(language, {}).get(message, message)
 
 
 # title, archive stem. Duplicates in the supplied list are intentionally removed.
@@ -200,22 +316,28 @@ class OnlinePiconsMain(Screen):
         Screen.__init__(self, session)
         self["title"] = Label("Online Picons")
         self["menu"] = MenuList(
-            [
-                self._menu_entry("Settings", "settings.png"),
-                self._menu_entry("Download Picons", "download.png"),
-                self._menu_entry("About", "about.png"),
-            ],
+            [],
             enableWrapAround=True,
             content=eListboxPythonMultiContent,
         )
         self["menu"].l.setFont(0, gFont("Regular", 38))
         self["menu"].l.setItemHeight(64)
-        self["hint"] = Label("OK: Select     EXIT: Close")
+        self["hint"] = Label("")
         self["actions"] = ActionMap(
             ["OkCancelActions"],
             {"ok": self.open_selected, "cancel": self.close},
             -1,
         )
+        self.refresh_language()
+
+    def refresh_language(self, unused=None):
+        self["menu"].setList([
+            self._menu_entry(tr("Settings"), "settings.png"),
+            self._menu_entry(tr("Download Picons"), "download.png"),
+            self._menu_entry(tr("Language"), "language.png"),
+            self._menu_entry(tr("About"), "about.png"),
+        ])
+        self["hint"].setText(tr("OK: Select     EXIT: Close"))
 
     def _menu_entry(self, text, icon):
         return [
@@ -243,8 +365,76 @@ class OnlinePiconsMain(Screen):
             self.session.open(DestinationScreen)
         elif index == 1:
             self.session.open(DownloadScreen)
+        elif index == 2:
+            self.session.openWithCallback(self.refresh_language, LanguageScreen)
         else:
             self.session.open(AboutScreen)
+
+
+class LanguageScreen(Screen):
+    skin = """
+    <screen name="LanguageScreen" position="center,center" size="760,410"
+            title="Language">
+        <widget name="heading" position="35,25" size="690,48"
+                font="Regular;32" halign="center" />
+        <widget name="languages" position="90,100" size="580,190"
+                scrollbarMode="showNever" />
+        <widget name="hint" position="35,340" size="690,35"
+                font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
+    </screen>
+    """
+
+    LANGUAGES = [("en", "English"), ("fa", "فارسی"), ("ar", "العربية")]
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.setTitle(tr("Language"))
+        self["heading"] = Label(tr("Choose language"))
+        self["languages"] = MenuList(
+            [], enableWrapAround=True, content=eListboxPythonMultiContent
+        )
+        self["languages"].l.setFont(0, gFont("Regular", 32))
+        self["languages"].l.setItemHeight(58)
+        self["hint"] = Label(tr("OK: Select     EXIT: Back"))
+        self["actions"] = ActionMap(
+            ["OkCancelActions"],
+            {"ok": self.select_language, "cancel": self.close},
+            -1,
+        )
+        self.refresh()
+
+    def refresh(self):
+        rows = []
+        selected_language = config.plugins.onlinepicons.language.value
+        for code, label in self.LANGUAGES:
+            row = [_menu_text(code)]
+            row.append(MultiContentEntryText(
+                pos=(15, 0), size=(45, 58), font=0,
+                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                text=_menu_text("X" if code == selected_language else ""),
+                color=0x00FF00, color_sel=0x00FF00,
+            ))
+            row.append(MultiContentEntryText(
+                pos=(80, 0), size=(480, 58), font=0,
+                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                text=_menu_text(label),
+            ))
+            rows.append(row)
+        self["languages"].setList(rows)
+        for index, item in enumerate(self.LANGUAGES):
+            if item[0] == selected_language:
+                self["languages"].moveToIndex(index)
+                break
+
+    def select_language(self):
+        index = self["languages"].getSelectedIndex()
+        config.plugins.onlinepicons.language.value = self.LANGUAGES[index][0]
+        config.plugins.onlinepicons.language.save()
+        configfile.save()
+        self.setTitle(tr("Language"))
+        self["heading"].setText(tr("Choose language"))
+        self["hint"].setText(tr("OK: Select     EXIT: Back"))
+        self.refresh()
 
 
 class DestinationScreen(Screen):
@@ -269,6 +459,7 @@ class DestinationScreen(Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
+        self.setTitle(tr("Online Picons - Settings"))
         self.paths = [
             "/media/hdd/picon",
             "/media/usb/picon",
@@ -279,13 +470,13 @@ class DestinationScreen(Screen):
         ]
         saved = config.plugins.onlinepicons.destination.value
         self.selected = self.paths.index(saved) if saved in self.paths else 2
-        self["heading"] = Label("Choose the destination for downloaded picons")
+        self["heading"] = Label(tr("Choose the destination for downloaded picons"))
         self["paths"] = MenuList([])
         _set_menu_style(self["paths"], 30, 48)
         self["custom"] = Label("")
-        self["keysLeft"] = Label("OK: Select     BLUE: Edit custom path     ")
-        self["greenKey"] = Label("GREEN")
-        self["keysRight"] = Label(": Save")
+        self["keysLeft"] = Label(tr("OK: Select     BLUE: Edit custom path     "))
+        self["greenKey"] = Label(tr("GREEN"))
+        self["keysRight"] = Label(tr(": Save"))
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -302,7 +493,7 @@ class DestinationScreen(Screen):
         rows = []
         for index, path in enumerate(self.paths):
             mark = "[X]" if index == self.selected else "[ ]"
-            label = path if index < 2 else "Custom path"
+            label = path if index < 2 else tr("Custom path")
             rows.append(_menu_text("%s  %s" % (mark, label)))
         current = self["paths"].getSelectedIndex()
         self["paths"].setList(rows)
@@ -320,7 +511,7 @@ class DestinationScreen(Screen):
         self.session.openWithCallback(
             self.custom_entered,
             VirtualKeyBoard,
-            title="Enter picon destination path",
+            title=tr("Enter picon destination path"),
             text=self.paths[2],
         )
 
@@ -330,7 +521,7 @@ class DestinationScreen(Screen):
             if not value.startswith("/"):
                 self.session.open(
                     MessageBox,
-                    "The path must start with /",
+                    tr("The path must start with /"),
                     MessageBox.TYPE_ERROR,
                     timeout=5,
                 )
@@ -347,7 +538,7 @@ class DestinationScreen(Screen):
         self.session.openWithCallback(
             lambda unused=None: self.close(),
             MessageBox,
-            "Picon destination saved:\n%s" % destination,
+            tr("Picon destination saved:\n%s") % destination,
             MessageBox.TYPE_INFO,
             timeout=3,
         )
@@ -368,19 +559,22 @@ class DownloadScreen(Screen):
                 font="Regular;21" halign="right" foregroundColor="#aaaaaa" />
         <widget name="satellites" position="35,85" size="1110,490"
                 scrollbarMode="showOnDemand" />
-        <widget name="status" position="35,585" size="1110,38"
+        <widget name="progress" position="250,582" size="680,20"
+                borderWidth="2" />
+        <widget name="status" position="35,608" size="1110,32"
                 font="Regular;21" halign="center" />
-        <widget name="keysLeft" position="190,635" size="430,35"
+        <widget name="keysLeft" position="190,648" size="430,30"
                 font="Regular;22" halign="right" />
-        <widget name="greenKey" position="620,635" size="78,35"
+        <widget name="greenKey" position="620,648" size="78,30"
                 font="Regular;22" halign="center" foregroundColor="#00ff00" />
-        <widget name="keysRight" position="698,635" size="300,35"
+        <widget name="keysRight" position="698,648" size="300,30"
                 font="Regular;22" halign="left" />
     </screen>
     """
 
     def __init__(self, session):
         Screen.__init__(self, session)
+        self.setTitle(tr("Online Picons - Download Picons"))
         self.selected = {}
         self.completed = set()
         self.available_urls = {}
@@ -397,11 +591,11 @@ class DownloadScreen(Screen):
         self.extractor_console = Console()
         self.pending_download_stems = None
         self.screen_closed = False
-        self["online"] = Label("Internet")
+        self["online"] = Label(tr("Internet"))
         self["onlineDot"] = Pixmap()
-        self["connection"] = Label("Checking...")
+        self["connection"] = Label(tr("Checking..."))
         self["destination"] = Label(
-            "Destination: %s" % config.plugins.onlinepicons.destination.value
+            tr("Destination: %s") % config.plugins.onlinepicons.destination.value
         )
         self["satellites"] = MenuList(
             [],
@@ -410,10 +604,12 @@ class DownloadScreen(Screen):
         )
         self["satellites"].l.setFont(0, gFont("Regular", 32))
         self["satellites"].l.setItemHeight(46)
-        self["status"] = Label("Checking internet connection...")
-        self["keysLeft"] = Label("OK: Select/Unselect     ")
-        self["greenKey"] = Label("GREEN")
-        self["keysRight"] = Label(": Download     EXIT: Back")
+        self["progress"] = ProgressBar()
+        self["progress"].setValue(0)
+        self["status"] = Label(tr("Checking internet connection..."))
+        self["keysLeft"] = Label(tr("OK: Select/Unselect     "))
+        self["greenKey"] = Label(tr("GREEN"))
+        self["keysRight"] = Label(tr(": Download     EXIT: Back"))
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -539,17 +735,17 @@ class DownloadScreen(Screen):
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "online":
-            self["connection"].setText("Online")
+            self["connection"].setText(tr("Online"))
             self._set_connection_dot("green")
-            self["status"].setText("Connected to Google and GitHub")
+            self["status"].setText(tr("Connected to Google and GitHub"))
         elif state == "google_only":
-            self["connection"].setText("Limited Internet")
+            self["connection"].setText(tr("Limited Internet"))
             self._set_connection_dot("yellow")
-            self["status"].setText("Internet works, but GitHub is unavailable")
+            self["status"].setText(tr("Internet works, but GitHub is unavailable"))
         else:
-            self["connection"].setText("Offline")
+            self["connection"].setText(tr("Offline"))
             self._set_connection_dot("red")
-            self["status"].setText("No internet connection")
+            self["status"].setText(tr("No internet connection"))
 
     def _set_connection_dot(self, color):
         path = os.path.join(PLUGIN_PATH, "dot-%s.png" % color)
@@ -612,7 +808,7 @@ class DownloadScreen(Screen):
         if self.connectivity != "online":
             self.session.open(
                 MessageBox,
-                "به دلیل عدم اتصال به اینترنت امکان دانلود Picon وجود ندارد.",
+                tr("Downloading is unavailable without an internet connection."),
                 MessageBox.TYPE_ERROR,
                 timeout=5,
             )
@@ -627,10 +823,10 @@ class DownloadScreen(Screen):
         if stem in self.available_urls:
             self.selected[stem] = title
             self.refresh_list()
-            self["status"].setText("Selected: %s" % title)
+            self["status"].setText(tr("Selected: %s") % title)
             return
         self.busy = True
-        self["status"].setText("Checking GitHub for %s..." % title)
+        self["status"].setText(tr("Checking GitHub for %s...") % title)
         url = "%s/%s.rar" % (RAW_BASE, stem)
         self.active_probe = (index, title, stem, url)
         _timer_start(
@@ -673,19 +869,16 @@ class DownloadScreen(Screen):
         if not available:
             self.session.open(
                 MessageBox,
-                _menu_text(
-                    u"این فایل فعلا وجود ندارد. لطفا بعدا مراجعه نمایید.\n\n"
-                    u"This file is not uploaded yet. Please visit us later..."
-                ),
+                _menu_text(tr("This file is not uploaded yet. Please try again later.")),
                 MessageBox.TYPE_INFO,
                 timeout=5,
             )
-            self["status"].setText("Archive not available: %s" % title)
+            self["status"].setText(tr("Archive not available: %s") % title)
             return
         self.available_urls[stem] = url
         self.selected[stem] = title
         self.refresh_list()
-        self["status"].setText("Selected: %s" % title)
+        self["status"].setText(tr("Selected: %s") % title)
 
     def download_selected(self):
         if self.busy:
@@ -693,7 +886,7 @@ class DownloadScreen(Screen):
         if self.connectivity != "online":
             self.session.open(
                 MessageBox,
-                "به دلیل عدم اتصال به اینترنت امکان دانلود Picon وجود ندارد.",
+                tr("Downloading is unavailable without an internet connection."),
                 MessageBox.TYPE_ERROR,
                 timeout=5,
             )
@@ -701,7 +894,7 @@ class DownloadScreen(Screen):
         if not self.selected:
             self.session.open(
                 MessageBox,
-                "ابتدا حداقل یک ماهواره را انتخاب کنید.",
+                tr("Select at least one satellite first."),
                 MessageBox.TYPE_INFO,
                 timeout=5,
             )
@@ -710,7 +903,7 @@ class DownloadScreen(Screen):
         if not _extractor_available():
             self.busy = True
             self.pending_download_stems = stems
-            self["status"].setText("Preparing download support...")
+            self["status"].setText(tr("Preparing download support..."))
             command = (
                 "sh -c '"
                 "apt-get update >/tmp/online-picons-setup.log 2>&1 || true; "
@@ -736,10 +929,10 @@ class DownloadScreen(Screen):
         self.pending_download_stems = None
         if return_code != 0 or not _extractor_available():
             self.busy = False
-            self["status"].setText("Download preparation failed")
+            self["status"].setText(tr("Download preparation failed"))
             self.session.open(
                 MessageBox,
-                "امکان آماده‌سازی دانلود وجود ندارد. اتصال اینترنت را بررسی و دوباره تلاش کنید.",
+                tr("Download support could not be prepared. Check the internet connection and try again."),
                 MessageBox.TYPE_ERROR,
                 timeout=7,
             )
@@ -748,8 +941,23 @@ class DownloadScreen(Screen):
 
     def _start_download(self, stems):
         self.busy = True
-        self["status"].setText("Downloading selected picons...")
+        self["progress"].setValue(0)
+        self["status"].setText(tr("Downloading selected picons..."))
         self._run_background("download", self._download_all, stems)
+
+    def _report_download_progress(self, percent, current, total):
+        reactor.callFromThread(
+            self._show_download_progress, percent, current, total
+        )
+
+    def _show_download_progress(self, percent, current, total):
+        if self.screen_closed:
+            return
+        percent = max(0, min(100, int(percent)))
+        self["progress"].setValue(percent)
+        self["status"].setText(
+            tr("Downloading: %d%% (%d/%d)") % (percent, current, total)
+        )
 
     def _download_all(self, stems):
         destination = config.plugins.onlinepicons.destination.value
@@ -761,19 +969,42 @@ class DownloadScreen(Screen):
         completed_stems = []
         temp_root = tempfile.mkdtemp(prefix="online-picons-", dir="/tmp")
         try:
-            for stem in stems:
+            total = len(stems)
+            for item_index, stem in enumerate(stems):
+                current = item_index + 1
+                self._report_download_progress(
+                    int(item_index * 100.0 / total), current, total
+                )
                 url = self.available_urls.get(stem) or _find_archive(stem)
                 if not url:
                     continue
                 extension = os.path.splitext(url)[1].lower()
                 archive = os.path.join(temp_root, stem + extension)
                 response = _request(url, timeout=45)
+                try:
+                    content_length = int(
+                        response.info().get("Content-Length", "0") or "0"
+                    )
+                except (TypeError, ValueError):
+                    content_length = 0
+                downloaded = 0
                 with open(archive, "wb") as output:
                     while True:
                         block = response.read(1024 * 128)
                         if not block:
                             break
                         output.write(block)
+                        downloaded += len(block)
+                        if content_length:
+                            item_fraction = min(
+                                1.0, float(downloaded) / content_length
+                            )
+                            percent = int(
+                                (item_index + item_fraction) * 100.0 / total
+                            )
+                            self._report_download_progress(
+                                percent, current, total
+                            )
                 response.close()
                 unpacked = os.path.join(temp_root, "unpacked-" + stem)
                 os.makedirs(unpacked)
@@ -787,6 +1018,9 @@ class DownloadScreen(Screen):
                             )
                             installed += 1
                 completed_stems.append(stem)
+                self._report_download_progress(
+                    int(current * 100.0 / total), current, total
+                )
             return installed, destination, completed_stems
         finally:
             shutil.rmtree(temp_root, ignore_errors=True)
@@ -816,10 +1050,13 @@ class DownloadScreen(Screen):
     def _download_finished(self, success, result):
         if success:
             count, destination, completed_stems = result
-            self["status"].setText("Download completed: %d PNG files" % count)
+            self["progress"].setValue(100)
+            self["status"].setText(
+                tr("Download completed: %d PNG files") % count
+            )
             self.session.open(
                 MessageBox,
-                "دانلود با موفقیت انجام شد.\n%d فایل در مسیر زیر کپی شد:\n%s"
+                tr("Download finished.\n%d files were copied to:\n%s")
                 % (count, destination),
                 MessageBox.TYPE_INFO,
                 timeout=7,
@@ -828,10 +1065,11 @@ class DownloadScreen(Screen):
             self.selected = {}
             self.refresh_list()
         else:
-            self["status"].setText("Download failed")
+            self["progress"].setValue(0)
+            self["status"].setText(tr("Download failed"))
             self.session.open(
                 MessageBox,
-                "خطا در دانلود یا آماده‌سازی پیکون‌ها. لطفاً دوباره تلاش کنید.",
+                tr("The picons could not be downloaded or prepared. Please try again."),
                 MessageBox.TYPE_ERROR,
                 timeout=8,
             )
@@ -841,13 +1079,18 @@ class AboutScreen(Screen):
     skin = """
     <screen name="AboutScreen" position="center,center" size="850,520"
             title="About">
-        <widget name="title" position="35,45" size="780,60"
-                font="Regular;38" halign="center" />
-        <widget name="youtubeLogo" position="365,115" size="120,68"
+        <widget name="youtubeLogo" position="155,70" size="120,68"
                 pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/youtube.png"
                 alphatest="blend" />
-        <widget name="body" position="55,190" size="740,230"
-                font="Regular;27" halign="center" valign="center" />
+        <widget name="youtubeText" position="305,70" size="430,68"
+                font="Regular;28" halign="left" valign="center" />
+        <widget name="telegramLogo" position="183,165" size="64,64"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/telegram.png"
+                alphatest="blend" />
+        <widget name="telegramText" position="305,165" size="430,64"
+                font="Regular;28" halign="left" valign="center" />
+        <widget name="body" position="55,260" size="740,130"
+                font="Regular;25" halign="center" valign="center" />
         <widget name="hint" position="35,455" size="780,35"
                 font="Regular;21" halign="center" foregroundColor="#aaaaaa" />
     </screen>
@@ -855,14 +1098,16 @@ class AboutScreen(Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self["title"] = Label("About")
+        self.setTitle(tr("About"))
         self["youtubeLogo"] = Pixmap()
+        self["youtubeText"] = Label("YouTube: @routekernel")
+        self["telegramLogo"] = Pixmap()
+        self["telegramText"] = Label("Telegram: @routekernel1")
         self["body"] = Label(
-            "YouTube: @routekernel\n\n"
-            "Version: %s\n\n"
-            "GitHub: github.com/%s" % (PLUGIN_VERSION, REPOSITORY)
+            tr("Version: %s") % PLUGIN_VERSION
+            + "\n\nGitHub: github.com/%s" % REPOSITORY
         )
-        self["hint"] = Label("EXIT: Close")
+        self["hint"] = Label(tr("EXIT: Close"))
         self["actions"] = ActionMap(
             ["OkCancelActions"],
             {"ok": self.close, "cancel": self.close},
@@ -878,7 +1123,7 @@ def Plugins(**kwargs):
     return [
         PluginDescriptor(
             name="Online Picons",
-            description="Download 220x132 picons from GitHub",
+            description="Smart Picons Downloader",
             where=PluginDescriptor.WHERE_PLUGINMENU,
             icon="plugin.png",
             fnc=main,
