@@ -1,0 +1,66 @@
+name: Build and publish DEB + IPK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "master"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main", "master"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Build matching DEB and IPK packages
+        run: python3 build_deb.py --format all
+
+      - name: Verify matching versions and payloads
+        run: |
+          python3 - <<'PY'
+          import glob
+          import hashlib
+          import os
+          import re
+
+          with open("OnlinePicons/__init__.py", encoding="utf-8") as source:
+              version = re.search(r'^PLUGIN_VERSION\s*=\s*["\']([^"\']+)', source.read(), re.M).group(1)
+
+          base = "dist/enigma2-plugin-extensions-online-picons_%s_all" % version
+          packages = [base + ".deb", base + ".ipk"]
+          assert sorted(glob.glob("dist/*")) == packages, glob.glob("dist/*")
+          assert all(os.path.isfile(path) for path in packages)
+          digests = [hashlib.sha256(open(path, "rb").read()).hexdigest() for path in packages]
+          assert len(set(digests)) == 1, "DEB and IPK payloads differ"
+          print("Verified matching DEB and IPK version:", version)
+          PY
+
+      - name: Verify release tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          package_version="$(python3 -c 'from OnlinePicons import PLUGIN_VERSION; print(PLUGIN_VERSION)')"
+          test "${GITHUB_REF_NAME}" = "v${package_version}"
+
+      - name: Upload DEB and IPK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: online-picons-packages
+          path: |
+            dist/*.deb
+            dist/*.ipk
+
+      - name: Attach both packages to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.deb
+            dist/*.ipk

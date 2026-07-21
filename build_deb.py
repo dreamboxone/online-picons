@@ -4,6 +4,8 @@
 import gzip
 import io
 import os
+import argparse
+import re
 import shutil
 import struct
 import tarfile
@@ -13,8 +15,19 @@ import zlib
 ROOT = os.path.abspath(os.path.dirname(__file__))
 OUTPUT = os.path.join(ROOT, "dist")
 PACKAGE = "enigma2-plugin-extensions-online-picons"
-VERSION = "1.0.11"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
+
+
+def plugin_version():
+    version_file = os.path.join(ROOT, "OnlinePicons", "__init__.py")
+    with open(version_file, "r", encoding="utf-8") as source:
+        match = re.search(r'^PLUGIN_VERSION\s*=\s*["\']([^"\']+)["\']', source.read(), re.M)
+    if not match:
+        raise RuntimeError("PLUGIN_VERSION is missing from OnlinePicons/__init__.py")
+    return match.group(1)
+
+
+VERSION = plugin_version()
 
 
 def png(path, width, height, pixels):
@@ -137,6 +150,35 @@ def make_youtube_icon(path):
     png(path, width, height, pixels)
 
 
+def make_telegram_icon(path):
+    width = height = 64
+    pixels = [0] * (width * height * 4)
+    blue = (35, 158, 216, 255)
+    white = (255, 255, 255, 255)
+
+    def set_pixel(x, y, color):
+        if 0 <= x < width and 0 <= y < height:
+            offset = (y * width + x) * 4
+            pixels[offset:offset + 4] = color
+
+    for y in range(height):
+        for x in range(width):
+            if (x - 32) ** 2 + (y - 32) ** 2 <= 30 ** 2:
+                set_pixel(x, y, blue)
+
+    # White paper plane.
+    for y in range(15, 47):
+        for x in range(12, 53):
+            upper = 23 + (x - 12) * 0.28
+            lower = 42 - (x - 12) * 0.18
+            if upper <= y <= lower and x + y <= 77:
+                set_pixel(x, y, white)
+    for step in range(27):
+        for thickness in range(3):
+            set_pixel(22 + step, 39 - step // 2 + thickness, blue)
+    png(path, width, height, pixels)
+
+
 def make_menu_icon(path, kind):
     width = height = 48
     pixels = [0] * (width * height * 4)
@@ -175,6 +217,18 @@ def make_menu_icon(path, kind):
         for y in range(11, 17):
             for x in range(21, 27):
                 set_pixel(x, y, white)
+    elif kind == "language":
+        for y in range(10, 39):
+            for x in range(10, 39):
+                dx, dy = x - 24, y - 24
+                distance = dx * dx + dy * dy
+                if 12 * 12 <= distance <= 15 * 15:
+                    set_pixel(x, y, white)
+                if abs(dx) <= 1 or abs(dy) <= 1:
+                    if distance <= 14 * 14:
+                        set_pixel(x, y, white)
+                if abs(dx * dx - 40) <= 18 and distance <= 14 * 14:
+                    set_pixel(x, y, white)
     else:
         for y in range(14, 35):
             for x in range(14, 35):
@@ -271,6 +325,14 @@ def ar_member(name, data, timestamp=0, mode=0o100644):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Build Online Picons packages")
+    parser.add_argument(
+        "--format",
+        choices=("deb", "ipk", "all"),
+        default="deb",
+        help="package format to build (default: deb)",
+    )
+    args = parser.parse_args()
     staging = os.path.join(ROOT, ".build")
     shutil.rmtree(staging, ignore_errors=True)
     os.makedirs(staging)
@@ -283,6 +345,7 @@ def main():
     make_plugin_icon(os.path.join(plugin_stage, "plugin.png"))
     make_menu_icon(os.path.join(plugin_stage, "settings.png"), "settings")
     make_menu_icon(os.path.join(plugin_stage, "download.png"), "download")
+    make_menu_icon(os.path.join(plugin_stage, "language.png"), "language")
     make_menu_icon(os.path.join(plugin_stage, "about.png"), "about")
     make_dot_icon(os.path.join(plugin_stage, "dot-checking.png"), (125, 125, 125, 255))
     make_dot_icon(os.path.join(plugin_stage, "dot-red.png"), (220, 45, 45, 255))
@@ -290,11 +353,25 @@ def main():
     make_dot_icon(os.path.join(plugin_stage, "dot-green.png"), (35, 190, 90, 255))
     make_check_icon(os.path.join(plugin_stage, "check.png"))
     make_youtube_icon(os.path.join(plugin_stage, "youtube.png"))
+    make_telegram_icon(os.path.join(plugin_stage, "telegram.png"))
 
+    control_stage = os.path.join(staging, "control")
+    os.makedirs(control_stage)
     control_entries = []
     for name in ("control", "postinst", "prerm"):
         mode = 0o755 if name in ("postinst", "prerm") else 0o644
-        control_entries.append((name, os.path.join(ROOT, "DEBIAN", name), mode))
+        source = os.path.join(ROOT, "DEBIAN", name)
+        target = os.path.join(control_stage, name)
+        shutil.copy2(source, target)
+        if name == "control":
+            with open(target, "r", encoding="utf-8") as control_file:
+                control = control_file.read()
+            control = re.sub(
+                r"^Version:\s*.*$", "Version: " + VERSION, control, flags=re.M
+            )
+            with open(target, "w", encoding="utf-8", newline="\n") as control_file:
+                control_file.write(control)
+        control_entries.append((name, target, mode))
 
     data_entries = []
     for name in sorted(os.listdir(plugin_stage)):
@@ -318,16 +395,21 @@ def main():
     ]
     data_tar = make_tar(data_entries, directories=data_directories)
     os.makedirs(OUTPUT, exist_ok=True)
-    output_path = os.path.join(
-        OUTPUT, "%s_%s_all.deb" % (PACKAGE, VERSION)
-    )
-    with open(output_path, "wb") as package:
-        package.write(b"!<arch>\n")
-        package.write(ar_member("debian-binary", b"2.0\n"))
-        package.write(ar_member("control.tar.gz", control_tar))
-        package.write(ar_member("data.tar.gz", data_tar))
+    formats = ("deb", "ipk") if args.format == "all" else (args.format,)
+    output_paths = []
+    for package_format in formats:
+        output_path = os.path.join(
+            OUTPUT, "%s_%s_all.%s" % (PACKAGE, VERSION, package_format)
+        )
+        with open(output_path, "wb") as package:
+            package.write(b"!<arch>\n")
+            package.write(ar_member("debian-binary", b"2.0\n"))
+            package.write(ar_member("control.tar.gz", control_tar))
+            package.write(ar_member("data.tar.gz", data_tar))
+        output_paths.append(output_path)
     shutil.rmtree(staging, ignore_errors=True)
-    print(output_path)
+    for output_path in output_paths:
+        print(output_path)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,0 @@
-Package: enigma2-plugin-extensions-onlinepicons
-Version: 1.0.0
-Description: Online Picons Downloader for Enigma2 (OE2.0 & OE2.5)
-Section: extra
-Priority: optional
-Maintainer: dreamboxone
-Architecture: all
-Homepage: https://github.com/dreamboxone/online-picons
-Depends: enigma2, python-requests
