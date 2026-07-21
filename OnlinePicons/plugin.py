@@ -124,6 +124,8 @@ TRANSLATIONS = {
         "Checking internet connection...": "در حال بررسی اتصال اینترنت...",
         "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
         ": Download     EXIT: Back": ": دانلود     EXIT: بازگشت",
+        ": Download": ": دانلود",
+        "EXIT: Back": "EXIT: بازگشت",
         "Online": "آنلاین",
         "Connected to Google and GitHub": "اتصال به گوگل و گیت‌هاب برقرار است",
         "Limited Internet": "اینترنت محدود",
@@ -172,6 +174,8 @@ TRANSLATIONS = {
         "Checking internet connection...": "جارٍ التحقق من اتصال الإنترنت...",
         "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
         ": Download     EXIT: Back": ": تنزيل     EXIT: رجوع",
+        ": Download": ": تنزيل",
+        "EXIT: Back": "EXIT: رجوع",
         "Online": "متصل",
         "Connected to Google and GitHub": "تم الاتصال بـ Google وGitHub",
         "Limited Internet": "اتصال محدود",
@@ -553,8 +557,8 @@ class DownloadScreen(Screen):
         <widget name="onlineDot" position="145,21" size="32,32"
                 pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/dot-checking.png"
                 alphatest="blend" />
-        <widget name="connection" position="185,15" size="280,45"
-                font="Regular;23" valign="center" />
+        <widget name="connection" position="185,15" size="210,45"
+                font="Regular;23" halign="left" valign="center" />
         <widget name="destination" position="470,25" size="675,38"
                 font="Regular;21" halign="right" foregroundColor="#aaaaaa" />
         <widget name="satellites" position="35,85" size="1110,490"
@@ -563,11 +567,13 @@ class DownloadScreen(Screen):
                 borderWidth="2" />
         <widget name="status" position="35,608" size="1110,32"
                 font="Regular;21" halign="center" />
-        <widget name="keysLeft" position="190,648" size="430,30"
-                font="Regular;22" halign="right" />
-        <widget name="greenKey" position="620,648" size="78,30"
-                font="Regular;22" halign="center" foregroundColor="#00ff00" />
-        <widget name="keysRight" position="698,648" size="300,30"
+        <widget name="keysLeft" position="120,648" size="430,30"
+                 font="Regular;22" halign="right" />
+        <widget name="greenKey" position="550,648" size="78,30"
+                 font="Regular;22" halign="center" foregroundColor="#00ff00" />
+        <widget name="downloadKey" position="628,648" size="160,30"
+                 font="Regular;22" halign="left" />
+        <widget name="exitKey" position="815,648" size="180,30"
                 font="Regular;22" halign="left" />
     </screen>
     """
@@ -609,7 +615,8 @@ class DownloadScreen(Screen):
         self["status"] = Label(tr("Checking internet connection..."))
         self["keysLeft"] = Label(tr("OK: Select/Unselect     "))
         self["greenKey"] = Label(tr("GREEN"))
-        self["keysRight"] = Label(tr(": Download     EXIT: Back"))
+        self["downloadKey"] = Label(tr(": Download"))
+        self["exitKey"] = Label(tr("EXIT: Back"))
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -1079,17 +1086,22 @@ class AboutScreen(Screen):
     skin = """
     <screen name="AboutScreen" position="center,center" size="850,520"
             title="About">
-        <widget name="youtubeLogo" position="155,70" size="120,68"
+        <widget name="youtubeLogo" position="175,45" size="64,64"
                 pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/youtube.png"
-                alphatest="blend" />
-        <widget name="youtubeText" position="305,70" size="430,68"
+                alphatest="blend" scale="1" />
+        <widget name="youtubeText" position="270,45" size="480,64"
                 font="Regular;28" halign="left" valign="center" />
-        <widget name="telegramLogo" position="183,165" size="64,64"
+        <widget name="telegramLogo" position="175,135" size="64,64"
                 pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/telegram.png"
-                alphatest="blend" />
-        <widget name="telegramText" position="305,165" size="430,64"
+                alphatest="blend" scale="1" />
+        <widget name="telegramText" position="270,135" size="480,64"
                 font="Regular;28" halign="left" valign="center" />
-        <widget name="body" position="55,260" size="740,130"
+        <widget name="githubLogo" position="175,225" size="64,64"
+                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/github.png"
+                alphatest="blend" scale="1" />
+        <widget name="githubText" position="270,225" size="480,64"
+                font="Regular;25" halign="left" valign="center" />
+        <widget name="version" position="55,350" size="740,45"
                 font="Regular;25" halign="center" valign="center" />
         <widget name="hint" position="35,455" size="780,35"
                 font="Regular;21" halign="center" foregroundColor="#aaaaaa" />
@@ -1103,10 +1115,9 @@ class AboutScreen(Screen):
         self["youtubeText"] = Label("YouTube: @routekernel")
         self["telegramLogo"] = Pixmap()
         self["telegramText"] = Label("Telegram: @routekernel1")
-        self["body"] = Label(
-            tr("Version: %s") % PLUGIN_VERSION
-            + "\n\nGitHub: github.com/%s" % REPOSITORY
-        )
+        self["githubLogo"] = Pixmap()
+        self["githubText"] = Label("GitHub: github.com/%s" % REPOSITORY)
+        self["version"] = Label(tr("Version: %s") % PLUGIN_VERSION)
         self["hint"] = Label(tr("EXIT: Close"))
         self["actions"] = ActionMap(
             ["OkCancelActions"],
