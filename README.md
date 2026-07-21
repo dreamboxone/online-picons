@@ -33,7 +33,7 @@ wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/main/insta
 همچنین می‌توانید فایل DEB را مستقیماً دانلود و نصب کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://raw.githubusercontent.com/dreamboxone/online-picons/main/releases/enigma2-plugin-extensions-online-picons_1.0.12_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
+wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://github.com/dreamboxone/online-picons/releases/download/v1.0.12/enigma2-plugin-extensions-online-picons_1.0.12_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
 ```
 
 پس از نصب، Enigma2 را یک‌بار Restart کنید.
