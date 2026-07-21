@@ -15,8 +15,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -50,7 +50,7 @@ jobs:
           test "${GITHUB_REF_NAME}" = "v${package_version}"
 
       - name: Upload DEB and IPK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: online-picons-packages
           path: |
