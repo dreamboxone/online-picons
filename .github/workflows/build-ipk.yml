@@ -2,6 +2,138 @@ name: Build Enigma2 IPK Package
 
 on:
   push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ipk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils tar gzip
+
+      - name: Build IPK package
+        run: |
+          chmod +x build_ipk.sh
+          ./build_ipk.sh
+
+      - name: Verify IPK contents
+        run: |
+          IPK=$(find dist -maxdepth 1 -name '*.ipk' -print -quit)
+          test -n "$IPK"
+          test "$(ar t "$IPK" | tr '
+' ' ')" = "debian-binary control.tar.gz data.tar.gz "
+          VERIFY_DIR=$(mktemp -d)
+          (
+            cd "$VERIFY_DIR"
+            ar x "$GITHUB_WORKSPACE/$IPK"
+            tar -tzf data.tar.gz | grep -q 'usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/plugin.py'
+            tar -tzf data.tar.gz | grep -q 'usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/__init__.py'
+            tar -tzf data.tar.gz | grep -q 'usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/plugin.png'
+            tar -xOf control.tar.gz ./control | grep -q '^Package: enigma2-plugin-extensions-online-picons$'
+          )
+          rm -rf "$VERIFY_DIR"
+
+      - name: Upload IPK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-picons-enigma2-ipk
+          path: dist/*.ipk
+          if-no-files-found: error
+
+      - name: Attach IPK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.ipk
+name: Build Enigma2 IPK Package
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ipk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils tar gzip
+
+      - name: Build IPK package
+        run: |
+          chmod +x build_ipk.sh
+          ./build_ipk.sh
+
+      - name: Verify IPK contents
+        run: |
+          IPK=$(find dist -maxdepth 1 -name '*.ipk' -print -quit)
+          test -n "$IPK"
+          test "$(ar t "$IPK" | tr '
+' ' ')" = "debian-binary control.tar.gz data.tar.gz "
+          VERIFY_DIR=$(mktemp -d)
+          (
+            cd "$VERIFY_DIR"
+            ar x "$GITHUB_WORKSPACE/$IPK"
+            tar -tzf data.tar.gz | grep -q 'usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/plugin.py'
+            tar -tzf data.tar.gz | grep -q 'usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/__init__.py'
+            tar -tzf data.tar.gz | grep -q 'usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/plugin.png'
+            tar -xOf control.tar.gz ./control | grep -q '^Package: enigma2-plugin-extensions-online-picons$'
+          )
+          rm -rf "$VERIFY_DIR"
+
+      - name: Upload IPK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-picons-enigma2-ipk
+          path: dist/*.ipk
+          if-no-files-found: error
+
+      - name: Attach IPK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.ipk
+name: Build Enigma2 IPK Package
+
+on:
+  push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]

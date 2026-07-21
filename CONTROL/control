@@ -1,3 +1,14 @@
+Package: enigma2-plugin-extensions-online-picons
+Version: 1.0.11-r0
+Description: Online Picons downloader for Enigma2
+ Downloads 220x132 satellite picon archives from GitHub and installs
+ PNG files in a user-selected destination.
+Section: extra
+Priority: optional
+Maintainer: routekernel
+Architecture: all
+Homepage: https://github.com/dreamboxone/online-picons
+Depends: enigma2
 Package: enigma2-plugin-extensions-onlinepicons
 Version: 1.0.0
 Description: Online Picons Downloader for Enigma2 (OE2.0 & OE2.5)
