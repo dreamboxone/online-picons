@@ -1,4 +1,15 @@
 Package: enigma2-plugin-extensions-online-picons
+Version: 1.0.14
+Section: extra
+Priority: optional
+Architecture: all
+Maintainer: routekernel
+Depends: enigma2
+Description: Online Picons downloader for DreamOS
+ Downloads 220x132 satellite picon archives from
+ github.com/dreamboxone/online-picons and installs PNG files
+ in a user-selected destination.
+Package: enigma2-plugin-extensions-online-picons
 Version: 1.0.13
 Section: extra
 Priority: optional
