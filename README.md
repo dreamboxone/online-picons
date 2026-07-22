@@ -13,6 +13,7 @@
 - بررسی اتصال گیرنده به Google و GitHub با دستور Ping
 - نمایش پیام فارسی در صورت نبودن فایل یا بروز خطا
 - پشتیبانی از فایل‌های فشرده RAR
+- بررسی و نصب آخرین نسخه از GitHub همراه با نمایش درصد دانلود
 
 ## وضعیت اتصال
 
@@ -33,7 +34,7 @@ wget -qO- https://raw.githubusercontent.com/dreamboxone/online-picons/refs/heads
 همچنین می‌توانید فایل DEB را مستقیماً دانلود و نصب کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://github.com/dreamboxone/online-picons/releases/download/v1.0.13/enigma2-plugin-extensions-online-picons_1.0.13_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
+wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://github.com/dreamboxone/online-picons/releases/download/v1.0.14/enigma2-plugin-extensions-online-picons_1.0.14_all.deb && dpkg -i /tmp/enigma2-plugin-extensions-online-picons.deb
 ```
 
 پس از نصب، Enigma2 را یک‌بار Restart کنید.
@@ -42,12 +43,12 @@ wget -O /tmp/enigma2-plugin-extensions-online-picons.deb https://github.com/drea
 
 فایل زیر را با FTP یا FileZilla به پوشه `/tmp` گیرنده انتقال دهید:
 
-`enigma2-plugin-extensions-online-picons_1.0.13_all.deb`
+`enigma2-plugin-extensions-online-picons_1.0.14_all.deb`
 
 سپس با Telnet یا SSH دستور زیر را اجرا کنید:
 
 ```sh
-dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.13_all.deb
+dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.14_all.deb
 ```
 
 پس از پایان نصب، Enigma2 را Restart کنید.
@@ -57,7 +58,7 @@ dpkg -i /tmp/enigma2-plugin-extensions-online-picons_1.0.13_all.deb
 برای گیرنده‌های Enigma2 مبتنی بر `opkg`، با Telnet یا SSH دستورهای زیر را اجرا کنید:
 
 ```sh
-wget -O /tmp/enigma2-plugin-extensions-online-picons.ipk https://github.com/dreamboxone/online-picons/releases/download/v1.0.13/enigma2-plugin-extensions-online-picons_1.0.13_all.ipk
+wget -O /tmp/enigma2-plugin-extensions-online-picons.ipk https://github.com/dreamboxone/online-picons/releases/download/v1.0.14/enigma2-plugin-extensions-online-picons_1.0.14_all.ipk
 opkg install /tmp/enigma2-plugin-extensions-online-picons.ipk
 ```
 
@@ -65,18 +66,18 @@ opkg install /tmp/enigma2-plugin-extensions-online-picons.ipk
 
 فایل زیر را با FTP یا FileZilla به پوشه `/tmp` گیرنده انتقال دهید:
 
-`enigma2-plugin-extensions-online-picons_1.0.13_all.ipk`
+`enigma2-plugin-extensions-online-picons_1.0.14_all.ipk`
 
 سپس با Telnet یا SSH دستور زیر را اجرا کنید:
 
 ```sh
-opkg install /tmp/enigma2-plugin-extensions-online-picons_1.0.13_all.ipk
+opkg install /tmp/enigma2-plugin-extensions-online-picons_1.0.14_all.ipk
 ```
 
 اگر نسخه قبلی نصب است و نیاز به نصب مجدد دارید، از دستور زیر استفاده کنید:
 
 ```sh
-opkg install --force-reinstall /tmp/enigma2-plugin-extensions-online-picons_1.0.13_all.ipk
+opkg install --force-reinstall /tmp/enigma2-plugin-extensions-online-picons_1.0.14_all.ipk
 ```
 
 پس از پایان نصب، Enigma2 را Restart کنید.
@@ -91,11 +92,14 @@ opkg install --force-reinstall /tmp/enigma2-plugin-extensions-online-picons_1.0.
 5. برای انتخاب چند ماهواره، همین کار را روی ماهواره‌های دیگر تکرار کنید.
 6. دکمه سبز کنترل را برای شروع دانلود بزنید.
 7. پس از دانلود و استخراج موفق، کنار نام ماهواره تیک سبز نمایش داده می‌شود.
+8. برای بررسی نسخه جدید، گزینه **Update** را باز کنید. نسخه نصب‌شده و آخرین
+   نسخه GitHub نمایش داده می‌شود و در صورت وجود نسخه جدید، دانلود و نصب با
+   نمایش درصد پیشرفت انجام می‌شود.
 
 برای خارج‌کردن یک ماهواره از حالت انتخاب، دوباره روی نام آن دکمه OK را بزنید.
 
 ## درباره پلاگین
 
-- نسخه: `1.0.13`
+- نسخه: `1.0.14`
 - YouTube: `@routekernel`
 - GitHub: [dreamboxone/online-picons](https://github.com/dreamboxone/online-picons)

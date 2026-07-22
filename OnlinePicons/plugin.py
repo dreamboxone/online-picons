@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import json
 import os
 import re
 import shutil
@@ -52,6 +53,8 @@ from . import PLUGIN_VERSION
 
 REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
+LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % REPOSITORY
+UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
 GOOGLE_HOST = "google.com"
 GITHUB_HOST = "github.com"
 PLUGIN_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -101,6 +104,17 @@ config.plugins.onlinepicons.language = ConfigSelection(
 
 TRANSLATIONS = {
     "fa": {
+        "Update": "به‌روزرسانی",
+        "Online Picons - Update": "آنلاین پیکونز - به‌روزرسانی",
+        "Current version: %s": "نسخه نصب‌شده: %s",
+        "Latest version: %s": "آخرین نسخه: %s",
+        "Checking GitHub for the latest version...": "در حال بررسی آخرین نسخه در گیت‌هاب...",
+        "Downloading update: %d%%": "در حال دانلود به‌روزرسانی: %d%%",
+        "Installing update...": "در حال نصب به‌روزرسانی...",
+        "No new version is available.": "نسخه جدیدی برای نصب وجود ندارد.",
+        "The update package was not found in the latest GitHub release.": "فایل به‌روزرسانی در آخرین انتشار گیت‌هاب پیدا نشد.",
+        "The update could not be completed.": "به‌روزرسانی انجام نشد.",
+        "Update installed successfully. Please restart Enigma2.": "به‌روزرسانی با موفقیت نصب شد. لطفاً Enigma2 را راه‌اندازی مجدد کنید.",
         "Settings": "تنظیمات",
         "Download Picons": "دانلود پیکون‌ها",
         "Online Picons - Settings": "آنلاین پیکونز - تنظیمات",
@@ -151,6 +165,17 @@ TRANSLATIONS = {
         "EXIT: Close": "EXIT: بستن",
     },
     "ar": {
+        "Update": "تحديث",
+        "Online Picons - Update": "Online Picons - تحديث",
+        "Current version: %s": "الإصدار المثبت: %s",
+        "Latest version: %s": "أحدث إصدار: %s",
+        "Checking GitHub for the latest version...": "جارٍ التحقق من أحدث إصدار على GitHub...",
+        "Downloading update: %d%%": "جارٍ تنزيل التحديث: %d%%",
+        "Installing update...": "جارٍ تثبيت التحديث...",
+        "No new version is available.": "لا يوجد إصدار جديد للتثبيت.",
+        "The update package was not found in the latest GitHub release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار على GitHub.",
+        "The update could not be completed.": "تعذر إكمال التحديث.",
+        "Update installed successfully. Please restart Enigma2.": "تم تثبيت التحديث بنجاح. يرجى إعادة تشغيل Enigma2.",
         "Settings": "الإعدادات",
         "Download Picons": "تنزيل الأيقونات",
         "Online Picons - Settings": "Online Picons - الإعدادات",
@@ -303,6 +328,18 @@ def _extractor_available():
     return False
 
 
+def _command_available(command):
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        executable = os.path.join(directory, command)
+        if os.path.isfile(executable) and os.access(executable, os.X_OK):
+            return True
+    return False
+
+
+def _version_tuple(value):
+    return tuple(int(number) for number in re.findall(r"\d+", value or ""))
+
+
 class OnlinePiconsMain(Screen):
     skin = """
     <screen name="OnlinePiconsMain" position="center,center" size="900,560"
@@ -339,6 +376,7 @@ class OnlinePiconsMain(Screen):
             self._menu_entry(tr("Settings"), "settings.png"),
             self._menu_entry(tr("Download Picons"), "download.png"),
             self._menu_entry(tr("Language"), "language.png"),
+            self._menu_entry(tr("Update"), "download.png"),
             self._menu_entry(tr("About"), "about.png"),
         ])
         self["hint"].setText(tr("OK: Select     EXIT: Close"))
@@ -371,6 +409,8 @@ class OnlinePiconsMain(Screen):
             self.session.open(DownloadScreen)
         elif index == 2:
             self.session.openWithCallback(self.refresh_language, LanguageScreen)
+        elif index == 3:
+            self.session.open(UpdateScreen)
         else:
             self.session.open(AboutScreen)
 
@@ -1080,6 +1120,185 @@ class DownloadScreen(Screen):
                 MessageBox.TYPE_ERROR,
                 timeout=8,
             )
+
+
+class UpdateScreen(Screen):
+    skin = """
+    <screen name="UpdateScreen" position="center,center" size="900,500"
+            title="Online Picons - Update">
+        <widget name="heading" position="40,30" size="820,50"
+                font="Regular;34" halign="center" />
+        <widget name="current" position="85,115" size="730,42"
+                font="Regular;28" halign="center" />
+        <widget name="latest" position="85,170" size="730,42"
+                font="Regular;28" halign="center" />
+        <widget name="progress" position="110,250" size="680,28"
+                borderWidth="2" />
+        <widget name="percent" position="110,290" size="680,38"
+                font="Regular;25" halign="center" />
+        <widget name="status" position="55,355" size="790,45"
+                font="Regular;24" halign="center" />
+        <widget name="hint" position="55,445" size="790,32"
+                font="Regular;21" halign="center" foregroundColor="#aaaaaa" />
+    </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.setTitle(tr("Online Picons - Update"))
+        self["heading"] = Label(tr("Update"))
+        self["current"] = Label(tr("Current version: %s") % PLUGIN_VERSION)
+        self["latest"] = Label(tr("Latest version: %s") % "...")
+        self["progress"] = ProgressBar()
+        self["progress"].setValue(0)
+        self["percent"] = Label("0%")
+        self["status"] = Label(tr("Checking GitHub for the latest version..."))
+        self["hint"] = Label(tr("EXIT: Back"))
+        self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.close}, -1)
+        self.started = False
+        self.closed = False
+        self.onShown.append(self.start_update)
+        self.onClose.append(self._cleanup)
+
+    def _cleanup(self):
+        self.closed = True
+
+    def start_update(self):
+        if self.started:
+            return
+        self.started = True
+        self._run_background("check", self._check_latest)
+
+    def _run_background(self, kind, function, *args):
+        def worker():
+            try:
+                result = function(*args)
+                success = True
+            except Exception as error:
+                result = str(error)
+                success = False
+            reactor.callFromThread(self._background_finished, kind, success, result)
+        thread = threading.Thread(target=worker)
+        thread.daemon = True
+        thread.start()
+
+    def _check_latest(self):
+        response = _request(LATEST_RELEASE_API, timeout=15)
+        try:
+            payload = response.read()
+        finally:
+            response.close()
+        if not isinstance(payload, text_type):
+            payload = payload.decode("utf-8")
+        release = json.loads(payload)
+        latest = (release.get("tag_name") or "").lstrip("vV")
+        if not latest:
+            raise RuntimeError("GitHub release has no version tag")
+        if _command_available("dpkg"):
+            extension, installer = ".deb", "dpkg"
+        elif _command_available("opkg"):
+            extension, installer = ".ipk", "opkg"
+        else:
+            raise RuntimeError("No supported package manager was found")
+        expected = "%s%s_all%s" % (UPDATE_PACKAGE_PREFIX, latest, extension)
+        selected_asset = None
+        for asset in release.get("assets") or []:
+            if asset.get("name") == expected:
+                selected_asset = asset
+                break
+        if selected_asset is None:
+            for asset in release.get("assets") or []:
+                name = asset.get("name") or ""
+                if name.startswith(UPDATE_PACKAGE_PREFIX) and name.endswith(extension):
+                    selected_asset = asset
+                    break
+        return latest, installer, extension, selected_asset
+
+    def _background_finished(self, kind, success, result):
+        if self.closed:
+            return
+        if not success:
+            self["status"].setText(tr("The update could not be completed."))
+            self.session.open(MessageBox, "%s\n%s" % (tr("The update could not be completed."), result), MessageBox.TYPE_ERROR, timeout=8)
+            return
+        if kind == "check":
+            latest = result[0]
+            self["latest"].setText(tr("Latest version: %s") % latest)
+            if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
+                self["status"].setText(tr("No new version is available."))
+                self.session.open(MessageBox, tr("No new version is available."), MessageBox.TYPE_INFO, timeout=5)
+                return
+            if result[3] is None:
+                message = tr("The update package was not found in the latest GitHub release.")
+                self["status"].setText(message)
+                self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
+                return
+            self["status"].setText(tr("Downloading update: %d%%") % 0)
+            self._run_background("install", self._download_and_install, result)
+            return
+        self["progress"].setValue(100)
+        self["percent"].setText("100%")
+        message = tr("Update installed successfully. Please restart Enigma2.")
+        self["status"].setText(message)
+        self.session.open(MessageBox, message, MessageBox.TYPE_INFO, timeout=10)
+
+    def _download_and_install(self, update_info):
+        latest, installer, extension, asset = update_info
+        url = asset.get("browser_download_url")
+        if not url:
+            raise RuntimeError("Release asset has no download URL")
+        target = "/tmp/online-picons-update%s" % extension
+        response = _request(url, timeout=60)
+        total = int(asset.get("size") or 0)
+        if not total:
+            try:
+                total = int(response.headers.get("Content-Length") or 0)
+            except Exception:
+                total = 0
+        downloaded = 0
+        try:
+            package = open(target, "wb")
+            try:
+                while True:
+                    block = response.read(128 * 1024)
+                    if not block:
+                        break
+                    package.write(block)
+                    downloaded += len(block)
+                    if total:
+                        percent = min(99, int(downloaded * 100 / total))
+                        reactor.callFromThread(self._show_progress, percent)
+            finally:
+                package.close()
+        finally:
+            response.close()
+        reactor.callFromThread(self._show_installing)
+        command = ["dpkg", "-i", target] if installer == "dpkg" else ["opkg", "install", target]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output = process.communicate()[0]
+        try:
+            os.unlink(target)
+        except Exception:
+            pass
+        if process.returncode:
+            if not isinstance(output, text_type):
+                output = output.decode("utf-8", "replace")
+            raise RuntimeError(output[-800:])
+        return latest
+
+    def _show_progress(self, percent):
+        if self.closed:
+            return
+        self["progress"].setValue(percent)
+        self["percent"].setText("%d%%" % percent)
+        self["status"].setText(tr("Downloading update: %d%%") % percent)
+
+    def _show_installing(self):
+        if self.closed:
+            return
+        self["progress"].setValue(100)
+        self["percent"].setText("100%")
+        self["status"].setText(tr("Installing update..."))
 
 
 class AboutScreen(Screen):
