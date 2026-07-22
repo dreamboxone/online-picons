@@ -379,7 +379,7 @@ class OnlinePiconsMain(Screen):
             self._menu_entry(tr("Settings"), "settings.png"),
             self._menu_entry(tr("Download Picons"), "download.png"),
             self._menu_entry(tr("Language"), "language.png"),
-            self._menu_entry(tr("Update"), "download.png"),
+            self._menu_entry(tr("Update"), "update.png"),
             self._menu_entry(tr("About"), "about.png"),
         ])
         self["hint"].setText(tr("OK: Select     EXIT: Close"))

@@ -343,10 +343,8 @@ def main():
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
     )
     make_plugin_icon(os.path.join(plugin_stage, "plugin.png"))
-    make_menu_icon(os.path.join(plugin_stage, "settings.png"), "settings")
-    make_menu_icon(os.path.join(plugin_stage, "download.png"), "download")
-    make_menu_icon(os.path.join(plugin_stage, "language.png"), "language")
-    make_menu_icon(os.path.join(plugin_stage, "about.png"), "about")
+    # Menu icons are maintained as equal-size source assets in OnlinePicons/.
+    # copytree above includes settings, download, language, update, and about.
     make_dot_icon(os.path.join(plugin_stage, "dot-checking.png"), (125, 125, 125, 255))
     make_dot_icon(os.path.join(plugin_stage, "dot-red.png"), (220, 45, 45, 255))
     make_dot_icon(os.path.join(plugin_stage, "dot-yellow.png"), (235, 190, 20, 255))
