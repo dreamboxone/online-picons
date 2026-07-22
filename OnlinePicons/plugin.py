@@ -54,7 +54,7 @@ from . import PLUGIN_VERSION
 
 REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
-LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % REPOSITORY
+LATEST_RELEASE_URL = "https://github.com/%s/releases/latest" % REPOSITORY
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
 GOOGLE_HOST = "google.com"
 GITHUB_HOST = "github.com"
@@ -115,6 +115,7 @@ TRANSLATIONS = {
         "No new version is available.": "نسخه جدیدی برای نصب وجود ندارد.",
         "The update package was not found in the latest GitHub release.": "فایل به‌روزرسانی در آخرین انتشار گیت‌هاب پیدا نشد.",
         "The update could not be completed.": "به‌روزرسانی انجام نشد.",
+        "The update check timed out. Please try again.": "بررسی نسخه جدید زمان‌بر شد. لطفاً دوباره تلاش کنید.",
         "Update installed successfully. Please restart Enigma2.": "به‌روزرسانی با موفقیت نصب شد. لطفاً Enigma2 را راه‌اندازی مجدد کنید.",
         "Settings": "تنظیمات",
         "Download Picons": "دانلود پیکون‌ها",
@@ -176,6 +177,7 @@ TRANSLATIONS = {
         "No new version is available.": "لا يوجد إصدار جديد للتثبيت.",
         "The update package was not found in the latest GitHub release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار على GitHub.",
         "The update could not be completed.": "تعذر إكمال التحديث.",
+        "The update check timed out. Please try again.": "انتهت مهلة التحقق من التحديث. يرجى المحاولة مرة أخرى.",
         "Update installed successfully. Please restart Enigma2.": "تم تثبيت التحديث بنجاح. يرجى إعادة تشغيل Enigma2.",
         "Settings": "الإعدادات",
         "Download Picons": "تنزيل الأيقونات",
@@ -1188,17 +1190,34 @@ class UpdateScreen(Screen):
         self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.close}, -1)
         self.started = False
         self.closed = False
+        self.check_pending = False
+        self.check_timeout_timer = eTimer()
         self.onShown.append(self.start_update)
         self.onClose.append(self._cleanup)
 
     def _cleanup(self):
         self.closed = True
+        self.check_pending = False
+        try:
+            self.check_timeout_timer.stop()
+        except Exception:
+            pass
 
     def start_update(self):
         if self.started:
             return
         self.started = True
+        self.check_pending = True
+        _timer_start(self.check_timeout_timer, 12000, self._check_timed_out)
         self._run_background("check", self._check_latest)
+
+    def _check_timed_out(self):
+        if self.closed or not self.check_pending:
+            return
+        self.check_pending = False
+        message = tr("The update check timed out. Please try again.")
+        self["status"].setText(message)
+        self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
 
     def _run_background(self, kind, function, *args):
         def worker():
@@ -1214,17 +1233,16 @@ class UpdateScreen(Screen):
         thread.start()
 
     def _check_latest(self):
-        response = _request(LATEST_RELEASE_API, timeout=15)
+        response = _request(LATEST_RELEASE_URL, timeout=8)
         try:
-            payload = response.read()
+            final_url = response.geturl()
         finally:
             response.close()
-        if not isinstance(payload, text_type):
-            payload = payload.decode("utf-8")
-        release = json.loads(payload)
-        latest = (release.get("tag_name") or "").lstrip("vV")
-        if not latest:
+        match = re.search(r"/releases/tag/([^/?#]+)", final_url or "")
+        if not match:
             raise RuntimeError("GitHub release has no version tag")
+        tag = match.group(1)
+        latest = tag.lstrip("vV")
         if _command_available("dpkg"):
             extension, installer = ".deb", "dpkg"
         elif _command_available("opkg"):
@@ -1232,22 +1250,27 @@ class UpdateScreen(Screen):
         else:
             raise RuntimeError("No supported package manager was found")
         expected = "%s%s_all%s" % (UPDATE_PACKAGE_PREFIX, latest, extension)
-        selected_asset = None
-        for asset in release.get("assets") or []:
-            if asset.get("name") == expected:
-                selected_asset = asset
-                break
-        if selected_asset is None:
-            for asset in release.get("assets") or []:
-                name = asset.get("name") or ""
-                if name.startswith(UPDATE_PACKAGE_PREFIX) and name.endswith(extension):
-                    selected_asset = asset
-                    break
+        selected_asset = {
+            "name": expected,
+            "browser_download_url": (
+                "https://github.com/%s/releases/download/%s/%s"
+                % (REPOSITORY, tag, expected)
+            ),
+            "size": 0,
+        }
         return latest, installer, extension, selected_asset
 
     def _background_finished(self, kind, success, result):
         if self.closed:
             return
+        if kind == "check":
+            if not self.check_pending:
+                return
+            self.check_pending = False
+            try:
+                self.check_timeout_timer.stop()
+            except Exception:
+                pass
         if not success:
             self["status"].setText(tr("The update could not be completed."))
             self.session.open(MessageBox, "%s\n%s" % (tr("The update could not be completed."), result), MessageBox.TYPE_ERROR, timeout=8)
