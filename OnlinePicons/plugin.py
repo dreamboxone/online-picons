@@ -45,6 +45,7 @@ from enigma import (
     RT_VALIGN_CENTER,
     eListboxPythonMultiContent,
     eTimer,
+    eSize,
     gFont,
 )
 
@@ -515,7 +516,11 @@ class DestinationScreen(Screen):
         saved = config.plugins.onlinepicons.destination.value
         self.selected = self.paths.index(saved) if saved in self.paths else 2
         self["heading"] = Label(tr("Choose the destination for downloaded picons"))
-        self["paths"] = MenuList([])
+        self["paths"] = MenuList(
+            [],
+            enableWrapAround=True,
+            content=eListboxPythonMultiContent,
+        )
         _set_menu_style(self["paths"], 30, 48)
         self["custom"] = Label("")
         self["keysLeft"] = Label(tr("OK: Select     BLUE: Edit custom path     "))
@@ -538,7 +543,18 @@ class DestinationScreen(Screen):
         for index, path in enumerate(self.paths):
             mark = "[X]" if index == self.selected else "[ ]"
             label = path if index < 2 else tr("Custom path")
-            rows.append(_menu_text("%s  %s" % (mark, label)))
+            row = [_menu_text(path)]
+            row.append(MultiContentEntryText(
+                pos=(15, 0), size=(65, 48), font=0,
+                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                text=_menu_text(mark),
+            ))
+            row.append(MultiContentEntryText(
+                pos=(90, 0), size=(755, 48), font=0,
+                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                text=_menu_text(label),
+            ))
+            rows.append(row)
         current = self["paths"].getSelectedIndex()
         self["paths"].setList(rows)
         self["paths"].moveToIndex(current)
@@ -597,7 +613,7 @@ class DownloadScreen(Screen):
         <widget name="onlineDot" position="145,21" size="32,32"
                 pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/dot-checking.png"
                 alphatest="blend" />
-        <widget name="connection" position="185,15" size="210,45"
+        <widget name="connection" position="181,15" size="280,45"
                 font="Regular;23" halign="left" valign="center" />
         <widget name="destination" position="470,25" size="675,38"
                 font="Regular;21" halign="right" foregroundColor="#aaaaaa" />
@@ -667,6 +683,7 @@ class DownloadScreen(Screen):
             -1,
         )
         self.onClose.append(self._cleanup)
+        self.onShown.append(self._resize_connection_label)
         self.refresh_list()
         self._start_connectivity_check()
 
@@ -782,17 +799,31 @@ class DownloadScreen(Screen):
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "online":
-            self["connection"].setText(tr("Online"))
+            self._set_connection_text(tr("Online"))
             self._set_connection_dot("green")
             self["status"].setText(tr("Connected to Google and GitHub"))
         elif state == "google_only":
-            self["connection"].setText(tr("Limited Internet"))
+            self._set_connection_text(tr("Limited Internet"))
             self._set_connection_dot("yellow")
             self["status"].setText(tr("Internet works, but GitHub is unavailable"))
         else:
-            self["connection"].setText(tr("Offline"))
+            self._set_connection_text(tr("Offline"))
             self._set_connection_dot("red")
             self["status"].setText(tr("No internet connection"))
+
+    def _set_connection_text(self, text):
+        self["connection"].setText(text)
+        self._resize_connection_label()
+
+    def _resize_connection_label(self):
+        try:
+            if self["connection"].instance is None:
+                return
+            text_size = self["connection"].instance.calculateSize()
+            width = max(70, min(280, text_size.width() + 8))
+            self["connection"].instance.resize(eSize(width, 45))
+        except Exception:
+            pass
 
     def _set_connection_dot(self, color):
         path = os.path.join(PLUGIN_PATH, "dot-%s.png" % color)
