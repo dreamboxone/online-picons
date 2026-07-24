@@ -1341,11 +1341,11 @@ class UpdateScreen(Screen):
             ),
             "size": 0,
         }
-        return latest, installer, extension, selected_asset
+            return latest, installer, extension, selected_asset
 
         def _background_finished(self, kind, success, result):
-        if self.closed:
-            return
+            if self.closed:
+                return
 
         if kind == "check":
             if not self.check_pending:
