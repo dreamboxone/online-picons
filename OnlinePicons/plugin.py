@@ -10,7 +10,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import tarfile
 
 try:
     from urllib.request import Request, urlopen
@@ -262,7 +261,7 @@ SATELLITES = [
     ("Picons-220x132-52.0°E (TurkmenÄlem/MonacoSat)", "52e"),
     ("Picons-220x132-52.5°E (Al Yah 1)", "52.5e"),
     ("Picons-220x132-53.0°E (Express AM6)", "53e"),
-    ("Picons-220x132-56.0°E (Express AT2)", "56e"),	
+    ("Picons-220x132-56.0°E (Express AT2)", "53e"),	
     ("Picons-220x132-62.0°E (Intelsat 39)", "62e"),
     ("Picons-220x132-68.5°E (Intelsat 20/36)", "68.5e"),
     ("Picons-220x132-70.5°E (Eutelsat 70B)", "70.5e"),
@@ -309,30 +308,25 @@ def _find_archive(stem):
 
 
 def _archive_stem(title):
-    """Derive the archive name from the orbital position in the title."""
-    match = re.search(
-        r"Picons-220x132-([0-9]+(?:\.[0-9]+)?)",
-        title
-    )
-
+    """Derive the tar.gz name from the orbital position in the visible title."""
+    match = re.search(r"Picons-220x132-([0-9]+(?:\.[0-9]+)?)", title)
     if not match:
         return None
-
     position = match.group(1)
-
     if "." in position:
         position = position.rstrip("0").rstrip(".")
-
     orbital_token = title[match.end():].split(" ", 1)[0].upper()
-
-    if "E" in orbital_token:
-        direction = "e"
-    elif "W" in orbital_token:
-        direction = "w"
-    else:
-        return None
-
+    direction = "e" if "E" in orbital_token else "w"
     return position + direction
+
+
+def _extractor_available():
+    for command in ("unrar", "7z", "7za", "bsdtar"):
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            executable = os.path.join(directory, command)
+            if os.path.isfile(executable) and os.access(executable, os.X_OK):
+                return True
+    return False
 
 
 def _command_available(command):
@@ -656,6 +650,8 @@ class DownloadScreen(Screen):
         self.probe_console = Console()
         self.probe_timeout_timer = eTimer()
         self.active_probe = None
+        self.extractor_console = Console()
+        self.pending_download_stems = None
         self.screen_closed = False
         self["online"] = Label(tr("Internet"))
         self["onlineDot"] = Pixmap()
@@ -707,6 +703,10 @@ class DownloadScreen(Screen):
             pass
         try:
             self.probe_console.killAll()
+        except Exception:
+            pass
+        try:
+            self.extractor_console.killAll()
         except Exception:
             pass
 
@@ -905,7 +905,7 @@ class DownloadScreen(Screen):
             return
         self.busy = True
         self["status"].setText(tr("Checking GitHub for %s...") % title)
-        url = "%s/%s.tar.gz" % (RAW_BASE, stem)
+        url = "%s/%s.rar" % (RAW_BASE, stem)
         self.active_probe = (index, title, stem, url)
         _timer_start(
             self.probe_timeout_timer,
@@ -977,9 +977,44 @@ class DownloadScreen(Screen):
                 timeout=5,
             )
             return
-            
-            
         stems = list(self.selected.keys())
+        if not _extractor_available():
+            self.busy = True
+            self.pending_download_stems = stems
+            self["status"].setText(tr("Preparing download support..."))
+            command = (
+                "sh -c '"
+                "apt-get update >/tmp/online-picons-setup.log 2>&1 || true; "
+                "apt-get install -y unrar >>/tmp/online-picons-setup.log 2>&1 || "
+                "apt-get install -y unrar-free >>/tmp/online-picons-setup.log 2>&1 || "
+                "apt-get install -y p7zip-full >>/tmp/online-picons-setup.log 2>&1 || "
+                "apt-get install -y p7zip >>/tmp/online-picons-setup.log 2>&1"
+                "'"
+            )
+            try:
+                self.extractor_console.ePopen(
+                    command,
+                    self._extractor_install_finished,
+                    [],
+                )
+            except Exception:
+                self._extractor_install_finished("", 1, [])
+            return
+        self._start_download(stems)
+
+    def _extractor_install_finished(self, output, return_code, extra_args):
+        stems = self.pending_download_stems
+        self.pending_download_stems = None
+        if return_code != 0 or not _extractor_available():
+            self.busy = False
+            self["status"].setText(tr("Download preparation failed"))
+            self.session.open(
+                MessageBox,
+                tr("Download support could not be prepared. Check the internet connection and try again."),
+                MessageBox.TYPE_ERROR,
+                timeout=7,
+            )
+            return
         self._start_download(stems)
 
     def _start_download(self, stems):
@@ -1021,7 +1056,8 @@ class DownloadScreen(Screen):
                 url = self.available_urls.get(stem) or _find_archive(stem)
                 if not url:
                     continue
-                archive = os.path.join(temp_root, stem + ".tar.gz")
+                extension = os.path.splitext(url)[1].lower()
+                archive = os.path.join(temp_root, stem + extension)
                 response = _request(url, timeout=45)
                 try:
                     content_length = int(
@@ -1050,7 +1086,7 @@ class DownloadScreen(Screen):
                 response.close()
                 unpacked = os.path.join(temp_root, "unpacked-" + stem)
                 os.makedirs(unpacked)
-                self._extract(archive, unpacked)
+                self._extract(archive, unpacked, extension)
                 for root, dirs, files in os.walk(unpacked):
                     for filename in files:
                         if filename.lower().endswith(".png"):
@@ -1067,59 +1103,27 @@ class DownloadScreen(Screen):
         finally:
             shutil.rmtree(temp_root, ignore_errors=True)
 
-
-
-
-    def _extract(self, archive, destination):
-        """Extract regular PNG files from a gzip-compressed tar archive."""
-        try:
-            package = tarfile.open(archive, "r:gz")
-        except (tarfile.TarError, IOError, OSError) as error:
-            raise RuntimeError(
-                "Could not open TAR.GZ archive: %s" % error
-            )
-
-        extracted = 0
-
-        try:
-            for member in package:
-                if not member.isfile():
-                    continue
-
-                member_name = member.name.replace("\\", "/")
-                member_parts = member_name.split("/")
-
-                # جلوگیری از استخراج مسیرهای خطرناک مانند ../
-                if member_name.startswith("/") or ".." in member_parts:
-                    continue
-
-                if not member_name.lower().endswith(".png"):
-                    continue
-
-                source = package.extractfile(member)
-                if source is None:
-                    continue
-
-                target = os.path.join(
-                    destination,
-                    os.path.basename(member_name)
+    def _extract(self, archive, destination, extension):
+        commands = [
+            ["unrar", "x", "-o+", archive, destination + os.sep],
+            ["7z", "x", "-y", "-o" + destination, archive],
+            ["7za", "x", "-y", "-o" + destination, archive],
+            ["bsdtar", "-xf", archive, "-C", destination],
+            ["tar", "-xf", archive, "-C", destination],
+        ]
+        for command in commands:
+            try:
+                process = subprocess.Popen(
+                    command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
                 )
-
-                output = open(target, "wb")
-                try:
-                    shutil.copyfileobj(source, output)
-                finally:
-                    output.close()
-                    source.close()
-
-                extracted += 1
-        finally:
-            package.close()
-
-        if not extracted:
-            raise RuntimeError(
-                "No PNG files were found in the TAR.GZ archive"
-            )
+                process.communicate()
+                if process.returncode == 0:
+                    return
+            except OSError:
+                pass
+        raise RuntimeError(
+            "RAR extraction failed"
+        )
 
     def _download_finished(self, success, result):
         if success:
