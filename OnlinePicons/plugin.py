@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -105,19 +107,21 @@ config.plugins.onlinepicons.language = ConfigSelection(
 TRANSLATIONS = {
     "fa": {
         "Update": "به‌روزرسانی",
+        "Update": "به‌روزرسانی",
         "Current version: %s": "نسخه نصب‌شده: %s",
-        "The update package was not found.": "فایل به‌روزرسانی پیدا نشد.",
         "Latest version: %s": "آخرین نسخه: %s",
-        "Checking for the latest version...": "در حال بررسی آخرین نسخه پلاگین...",
+        "Checking GitHub for the latest version...": "در حال بررسی آخرین نسخه در گیت‌هاب...",
         "Downloading update: %d%%": "در حال دانلود به‌روزرسانی: %d%%",
         "Installing update...": "در حال نصب به‌روزرسانی...",
         "No new version is available.": "نسخه جدیدی برای نصب وجود ندارد.",
-        "No new Update": "به‌روزرسانی جدیدی پیدا نشد.",
+        "The update package was not found in the latest GitHub release.": "فایل به‌روزرسانی در آخرین انتشار گیت‌هاب پیدا نشد.",
         "The update could not be completed.": "به‌روزرسانی انجام نشد.",
         "The update check timed out. Please try again.": "بررسی نسخه جدید زمان‌بر شد. لطفاً دوباره تلاش کنید.",
         "Update installed successfully. Please restart Enigma2.": "به‌روزرسانی با موفقیت نصب شد. لطفاً Enigma2 را راه‌اندازی مجدد کنید.",
         "Settings": "تنظیمات",
         "Download Picons": "دانلود پیکون‌ها",
+        "Settings": "تنظیمات",
+        "Download Picons": "دانلود پیکونها",
         "Language": "زبان",
         "About": "درباره",
         "GREEN": "سبز",
@@ -140,14 +144,14 @@ TRANSLATIONS = {
         ": Download": ": دانلود",
         "EXIT: Back": "EXIT: بازگشت",
         "Online": "آنلاین",
-        "Connected to the Internet": "به اینترنت متصل هستید",
+        "Connected to I": "به اینترنت متصل هستید",
         "Limited Internet": "اینترنت محدود",
         "Internet works, but GitHub is unavailable": "اینترنت برقرار است، اما گیت‌هاب در دسترس نیست",
         "Offline": "آفلاین",
         "No internet connection": "اتصال اینترنت برقرار نیست",
         "Downloading is unavailable without an internet connection.": "بدون اتصال اینترنت امکان دانلود پیکون وجود ندارد.",
         "Selected: %s": "انتخاب شد: %s",
-        "Checking availability for %s...": "در حال بررسی موجود بودن %s...",
+        "Checking GitHub for %s...": "در حال بررسی %s در گیت‌هاب...",
         "This file is not uploaded yet. Please try again later.": "این فایل هنوز بارگذاری نشده است. لطفاً بعداً دوباره تلاش کنید.",
         "Archive not available: %s": "فایل در دسترس نیست: %s",
         "Select at least one satellite first.": "ابتدا حداقل یک ماهواره را انتخاب کنید.",
@@ -155,7 +159,7 @@ TRANSLATIONS = {
         "Download preparation failed": "آماده‌سازی دانلود ناموفق بود",
         "Download support could not be prepared. Check the internet connection and try again.": "ابزار دانلود آماده نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.",
         "Downloading selected picons...": "در حال دانلود پیکون‌های انتخاب‌شده...",
-        "Downloading: %d%% (%d/%d)": "در حال دانلود: %d%% (%d/%d)",
+        "Downloading: %d%% (%d/%d)": "در حال دانلود: ٪%d (%d/%d)",
         "Download completed: %d PNG files": "دانلود کامل شد: %d فایل PNG",
         "Download finished.\n%d files were copied to:\n%s": "دانلود تمام شد.\n%d فایل در مسیر زیر کپی شد:\n%s",
         "Download failed": "دانلود ناموفق بود",
@@ -165,17 +169,19 @@ TRANSLATIONS = {
     },
     "ar": {
         "Update": "تحديث",
+        "Update": "تحديث",
         "Current version: %s": "الإصدار المثبت: %s",
         "Latest version: %s": "أحدث إصدار: %s",
-        "The update package was not found.": "لم يتم العثور على ملف التحديث.",
-        "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار...",
+        "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار على ...",
         "Downloading update: %d%%": "جارٍ تنزيل التحديث: %d%%",
         "Installing update...": "جارٍ تثبيت التحديث...",
         "No new version is available.": "لا يوجد إصدار جديد للتثبيت.",
-        "No new Update": "لم يتم العثور على تحديث جديد.",
+        "The update package was not found in the latest release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار على.",
         "The update could not be completed.": "تعذر إكمال التحديث.",
         "The update check timed out. Please try again.": "انتهت مهلة التحقق من التحديث. يرجى المحاولة مرة أخرى.",
         "Update installed successfully. Please restart Enigma2.": "تم تثبيت التحديث بنجاح. يرجى إعادة تشغيل Enigma2.",
+        "Settings": "الإعدادات",
+        "Download Picons": "تنزيل الأيقونات",
         "Settings": "الإعدادات",
         "Download Picons": "تنزيل الأيقونات",
         "Language": "اللغة",
@@ -200,14 +206,14 @@ TRANSLATIONS = {
         ": Download": ": تنزيل",
         "EXIT: Back": "EXIT: رجوع",
         "Online": "متصل",
-        "Connected to the Internet": "تم الاتصال بالإنترنت",
+        "Connected to the Internet": "تم الاتصال بالاینترنت",
         "Limited Internet": "اتصال محدود",
         "Internet works, but GitHub is unavailable": "الإنترنت يعمل، لكن GitHub غير متاح",
         "Offline": "غير متصل",
         "No internet connection": "لا يوجد اتصال بالإنترنت",
         "Downloading is unavailable without an internet connection.": "لا يمكن التنزيل بدون اتصال بالإنترنت.",
         "Selected: %s": "تم الاختيار: %s",
-        "Checking availability for %s...": "جارٍ التحقق من توفر %s...",
+        "Checking for %s...": "جارٍ التحقق من %s على...",
         "This file is not uploaded yet. Please try again later.": "لم يتم رفع هذا الملف بعد. يرجى المحاولة لاحقاً.",
         "Archive not available: %s": "الملف غير متاح: %s",
         "Select at least one satellite first.": "اختر قمراً صناعياً واحداً على الأقل أولاً.",
@@ -636,7 +642,7 @@ class DownloadScreen(Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self.setTitle(tr("Download Picons"))
+        self.setTitle(tr("Online Picons - Download Picons"))
         self.selected = {}
         self.completed = set()
         self.available_urls = {}
@@ -795,7 +801,7 @@ class DownloadScreen(Screen):
         if state == "online":
             self._set_connection_text(tr("Online"))
             self._set_connection_dot("green")
-            self["status"].setText(tr("Connected to the Internet"))
+            self["status"].setText(tr("Connected to Google and GitHub"))
         elif state == "google_only":
             self._set_connection_text(tr("Limited Internet"))
             self._set_connection_dot("yellow")
@@ -898,14 +904,12 @@ class DownloadScreen(Screen):
             self["status"].setText(tr("Selected: %s") % title)
             return
         self.busy = True
-        self["status"].setText(
-            tr("Checking availability for %s...") % title
-        )
+        self["status"].setText(tr("Checking GitHub for %s...") % title)
         url = "%s/%s.tar.gz" % (RAW_BASE, stem)
         self.active_probe = (index, title, stem, url)
         _timer_start(
             self.probe_timeout_timer,
-            8000,
+            1900,
             self._probe_timed_out,
         )
         try:
@@ -1000,163 +1004,70 @@ class DownloadScreen(Screen):
 
     def _download_all(self, stems):
         destination = config.plugins.onlinepicons.destination.value
-
-        if destination == "/" or not destination.startswith("/"):
+        if not destination.startswith("/"):
             raise RuntimeError("Invalid destination path")
-
         if not os.path.isdir(destination):
             os.makedirs(destination)
-
         installed = 0
         completed_stems = []
-
-        temp_root = tempfile.mkdtemp(
-            prefix="online-picons-",
-            dir="/tmp",
-        )
-
+        temp_root = tempfile.mkdtemp(prefix="online-picons-", dir="/tmp")
         try:
             total = len(stems)
-
-            if total <= 0:
-                raise RuntimeError(
-                    "No satellite was selected"
-                )
-
             for item_index, stem in enumerate(stems):
                 current = item_index + 1
-
                 self._report_download_progress(
-                    int(item_index * 100.0 / total),
-                    current,
-                    total,
+                    int(item_index * 100.0 / total), current, total
                 )
-
-                url = (
-                    self.available_urls.get(stem)
-                    or _find_archive(stem)
-                )
-
+                url = self.available_urls.get(stem) or _find_archive(stem)
                 if not url:
                     continue
-
-                archive = os.path.join(
-                    temp_root,
-                    stem + ".tar.gz",
-                )
-
-                response = _request(
-                    url,
-                    timeout=45,
-                )
-
+                archive = os.path.join(temp_root, stem + ".tar.gz")
+                response = _request(url, timeout=45)
                 try:
-                    try:
-                        content_length = int(
-                            response.info().get(
-                                "Content-Length",
-                                "0",
-                            ) or "0"
-                        )
-                    except (TypeError, ValueError):
-                        content_length = 0
-
-                    downloaded = 0
-
-                    with open(archive, "wb") as output:
-                        while True:
-                            block = response.read(
-                                1024 * 128
+                    content_length = int(
+                        response.info().get("Content-Length", "0") or "0"
+                    )
+                except (TypeError, ValueError):
+                    content_length = 0
+                downloaded = 0
+                with open(archive, "wb") as output:
+                    while True:
+                        block = response.read(1024 * 128)
+                        if not block:
+                            break
+                        output.write(block)
+                        downloaded += len(block)
+                        if content_length:
+                            item_fraction = min(
+                                1.0, float(downloaded) / content_length
                             )
-
-                            if not block:
-                                break
-
-                            output.write(block)
-                            downloaded += len(block)
-
-                            if content_length:
-                                item_fraction = min(
-                                    1.0,
-                                    float(downloaded)
-                                    / content_length,
-                                )
-
-                                percent = int(
-                                    (
-                                        item_index
-                                        + item_fraction
-                                    )
-                                    * 100.0
-                                    / total
-                                )
-
-                                self._report_download_progress(
-                                    percent,
-                                    current,
-                                    total,
-                                )
-                finally:
-                    response.close()
-
-                unpacked = os.path.join(
-                    temp_root,
-                    "unpacked-" + stem,
-                )
-
+                            percent = int(
+                                (item_index + item_fraction) * 100.0 / total
+                            )
+                            self._report_download_progress(
+                                percent, current, total
+                            )
+                response.close()
+                unpacked = os.path.join(temp_root, "unpacked-" + stem)
                 os.makedirs(unpacked)
-
-                self._extract(
-                    archive,
-                    unpacked,
-                )
-
+                self._extract(archive, unpacked)
                 for root, dirs, files in os.walk(unpacked):
                     for filename in files:
-                        if not filename.lower().endswith(".png"):
-                            continue
-
-                        source = os.path.join(
-                            root,
-                            filename,
-                        )
-
-                        target = os.path.join(
-                            destination,
-                            filename,
-                        )
-
-                        shutil.copy2(
-                            source,
-                            target,
-                        )
-
-                        installed += 1
-
+                        if filename.lower().endswith(".png"):
+                            shutil.copy2(
+                                os.path.join(root, filename),
+                                os.path.join(destination, filename),
+                            )
+                            installed += 1
                 completed_stems.append(stem)
-
                 self._report_download_progress(
-                    int(current * 100.0 / total),
-                    current,
-                    total,
+                    int(current * 100.0 / total), current, total
                 )
-
-            if installed <= 0:
-                raise RuntimeError(
-                    "No picon files were installed"
-                )
-
-            return (
-                installed,
-                destination,
-                completed_stems,
-            )
-
+            return installed, destination, completed_stems
         finally:
-            shutil.rmtree(
-                temp_root,
-                ignore_errors=True,
-            )
+            shutil.rmtree(temp_root, ignore_errors=True)
+
+
 
 
     def _extract(self, archive, destination):
@@ -1323,7 +1234,7 @@ class UpdateScreen(Screen):
             response.close()
         match = re.search(r"/releases/tag/([^/?#]+)", final_url or "")
         if not match:
-            raise RuntimeError("Could not determine the latest version")
+            raise RuntimeError("GitHub release has no version tag")
         tag = match.group(1)
         latest = tag.lstrip("vV")
         if _command_available("dpkg"):
@@ -1341,94 +1252,43 @@ class UpdateScreen(Screen):
             ),
             "size": 0,
         }
-            return latest, installer, extension, selected_asset
+        return latest, installer, extension, selected_asset
 
-        def _background_finished(self, kind, success, result):
-            if self.closed:
-                return
-
+    def _background_finished(self, kind, success, result):
+        if self.closed:
+            return
         if kind == "check":
             if not self.check_pending:
                 return
-
             self.check_pending = False
-
             try:
                 self.check_timeout_timer.stop()
             except Exception:
                 pass
-
         if not success:
-            message = tr("The update could not be completed.")
-
-            try:
-                print("[OnlinePicons] Update error: %s" % result)
-            except Exception:
-                pass
-
-            self["status"].setText(message)
-            self.session.open(
-                MessageBox,
-                message,
-                MessageBox.TYPE_ERROR,
-                timeout=8,
-            )
+            self["status"].setText(tr("The update could not be completed."))
+            self.session.open(MessageBox, "%s\n%s" % (tr("The update could not be completed."), result), MessageBox.TYPE_ERROR, timeout=8)
             return
-
         if kind == "check":
             latest = result[0]
-
-            self["latest"].setText(
-                tr("Latest version: %s") % latest
-            )
-
+            self["latest"].setText(tr("Latest version: %s") % latest)
             if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
-                message = tr("No new version is available.")
-                self["status"].setText(message)
-                self.session.open(
-                    MessageBox,
-                    message,
-                    MessageBox.TYPE_INFO,
-                    timeout=5,
-                )
+                self["status"].setText(tr("No new version is available."))
+                self.session.open(MessageBox, tr("No new version is available."), MessageBox.TYPE_INFO, timeout=5)
                 return
-
             if result[3] is None:
-                message = tr("The update package was not found.")
+                message = tr("The update package was not found in the latest GitHub release.")
                 self["status"].setText(message)
-                self.session.open(
-                    MessageBox,
-                    message,
-                    MessageBox.TYPE_ERROR,
-                    timeout=7,
-                )
+                self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
                 return
-
-            self["status"].setText(
-                tr("Downloading update: %d%%") % 0
-            )
-            self._run_background(
-                "install",
-                self._download_and_install,
-                result,
-            )
+            self["status"].setText(tr("Downloading update: %d%%") % 0)
+            self._run_background("install", self._download_and_install, result)
             return
-
-        if kind == "install":
-            self["progress"].setValue(100)
-            self["percent"].setText("100%")
-
-            message = tr(
-                "Update installed successfully. Please restart Enigma2."
-            )
-
-            self["status"].setText(message)
-            self.session.open(
-                MessageBox,
-                message,
-                MessageBox.TYPE_INFO,
-                timeout=10,
-            )
+        self["progress"].setValue(100)
+        self["percent"].setText("100%")
+        message = tr("Update installed successfully. Please restart Enigma2.")
+        self["status"].setText(message)
+        self.session.open(MessageBox, message, MessageBox.TYPE_INFO, timeout=10)
 
     def _download_and_install(self, update_info):
         latest, installer, extension, asset = update_info
