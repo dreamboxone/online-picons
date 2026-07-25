@@ -1115,49 +1115,62 @@ class UpdateScreen(Screen):
         self["status"] = Label(tr("Checking for the latest version..."))
         self["hint"] = Label(tr("EXIT: Back"))
         self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.close}, -1)
+
         self.started = False
         self.closed = False
         self.check_pending = False
-        self.check_timeout_call = None
-        self.onClose.append(self._cleanup)
+        self.background_result = None
+        self.pending_progress = None
+        self.pending_installing = False
 
-        # Start the update check directly. Some DreamOS/Enigma2 images do not
-        # reliably call Screen.onShown for this screen, which leaves the UI
-        # permanently on the initial "Checking..." message.
-        self.start_update()
+        # Use Enigma2 eTimer for all callbacks. On some DreamOS images the
+        # Twisted reactor is imported but its callLater/callFromThread callbacks
+        # are not dispatched, leaving this screen permanently at 0%.
+        self.start_timer = eTimer()
+        self.result_timer = eTimer()
+        self.check_timeout_timer = eTimer()
+        self._connect_timer(self.start_timer, self.start_update)
+        self._connect_timer(self.result_timer, self._poll_background)
+        self._connect_timer(self.check_timeout_timer, self._check_timed_out)
+
+        self.onClose.append(self._cleanup)
+        self.start_timer.start(150, True)
+
+    def _connect_timer(self, timer, callback):
+        try:
+            timer.callback.append(callback)
+        except Exception:
+            timer.timeout.connect(callback)
 
     def _cleanup(self):
         self.closed = True
         self.check_pending = False
-        try:
-            if self.check_timeout_call is not None and self.check_timeout_call.active():
-                self.check_timeout_call.cancel()
-        except Exception:
-            pass
-        self.check_timeout_call = None
+        for timer in (self.start_timer, self.result_timer, self.check_timeout_timer):
+            try:
+                timer.stop()
+            except Exception:
+                pass
 
     def start_update(self):
-        if self.started:
+        if self.started or self.closed:
             return
         self.started = True
         self.check_pending = True
-        # reactor.callLater is more reliable than eTimer across Enigma2 images.
-        # It also releases the Update screen even if DNS/urlopen hangs in the worker.
-        self.check_timeout_call = reactor.callLater(7, self._check_timed_out)
+        self.check_timeout_timer.start(7000, True)
         self._run_background("check", self._check_latest)
 
     def _check_timed_out(self):
         if self.closed or not self.check_pending:
             return
         self.check_pending = False
-        self.check_timeout_call = None
         self["progress"].setValue(0)
         self["percent"].setText("--")
-        message = tr("The update check timed out. Please try again.")
-        self["status"].setText(message)
-        # Keep the message inside this screen; do not open a global Enigma2 dialog.
+        self["status"].setText(tr("The update check timed out. Please try again."))
 
     def _run_background(self, kind, function, *args):
+        self.background_result = None
+        self.result_timer.start(100, True)
+
         def worker():
             try:
                 result = function(*args)
@@ -1165,10 +1178,35 @@ class UpdateScreen(Screen):
             except Exception as error:
                 result = str(error)
                 success = False
-            reactor.callFromThread(self._background_finished, kind, success, result)
+            # A single tuple assignment is safe here; the eTimer reads it from
+            # the Enigma2 main thread and performs every UI update there.
+            self.background_result = (kind, success, result)
+
         thread = threading.Thread(target=worker)
         thread.daemon = True
         thread.start()
+
+    def _poll_background(self):
+        if self.closed:
+            return
+
+        if self.pending_progress is not None:
+            percent = self.pending_progress
+            self.pending_progress = None
+            self._show_progress(percent)
+
+        if self.pending_installing:
+            self.pending_installing = False
+            self._show_installing()
+
+        completed = self.background_result
+        if completed is None:
+            self.result_timer.start(100, True)
+            return
+
+        self.background_result = None
+        kind, success, result = completed
+        self._background_finished(kind, success, result)
 
     def _check_latest(self):
         raw_release = _read_text(
@@ -1185,7 +1223,6 @@ class UpdateScreen(Screen):
             raise RuntimeError("GitHub release has no version tag")
         latest = tag.lstrip("vV")
 
-        # When the installed version is already current, skip package/asset work.
         if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
             return latest, None, None, None
 
@@ -1230,27 +1267,26 @@ class UpdateScreen(Screen):
     def _background_finished(self, kind, success, result):
         if self.closed:
             return
+
         if kind == "check":
             if not self.check_pending:
                 return
             self.check_pending = False
             try:
-                if self.check_timeout_call is not None and self.check_timeout_call.active():
-                    self.check_timeout_call.cancel()
+                self.check_timeout_timer.stop()
             except Exception:
                 pass
-            self.check_timeout_call = None
+
         if not success:
-            # Keep the Update screen responsive and report the error in-place.
             self["progress"].setValue(0)
             self["percent"].setText("--")
             self["status"].setText(tr("The update could not be completed."))
             return
+
         if kind == "check":
             latest = result[0]
             self["latest"].setText(tr("Latest version: %s") % latest)
             if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
-                # No nested MessageBox: show the answer immediately on this screen.
                 self["progress"].setValue(100)
                 self["percent"].setText("100%")
                 self["status"].setText(tr("No new version is available."))
@@ -1258,11 +1294,11 @@ class UpdateScreen(Screen):
             if result[3] is None:
                 message = tr("The update package was not found in the latest GitHub release.")
                 self["status"].setText(message)
-                self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
                 return
             self["status"].setText(tr("Downloading update: %d%%") % 0)
             self._run_background("install", self._download_and_install, result)
             return
+
         self["progress"].setValue(100)
         self["percent"].setText("100%")
         message = tr("Update installed successfully. Please restart Enigma2.")
@@ -1293,13 +1329,13 @@ class UpdateScreen(Screen):
                     package.write(block)
                     downloaded += len(block)
                     if total:
-                        percent = min(99, int(downloaded * 100 / total))
-                        reactor.callFromThread(self._show_progress, percent)
+                        self.pending_progress = min(99, int(downloaded * 100 / total))
             finally:
                 package.close()
         finally:
             response.close()
-        reactor.callFromThread(self._show_installing)
+
+        self.pending_installing = True
         command = ["dpkg", "-i", target] if installer == "dpkg" else ["opkg", "install", target]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         output = process.communicate()[0]
