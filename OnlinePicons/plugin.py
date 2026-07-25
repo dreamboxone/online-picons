@@ -1119,8 +1119,12 @@ class UpdateScreen(Screen):
         self.closed = False
         self.check_pending = False
         self.check_timeout_call = None
-        self.onShown.append(self.start_update)
         self.onClose.append(self._cleanup)
+
+        # Start the update check directly. Some DreamOS/Enigma2 images do not
+        # reliably call Screen.onShown for this screen, which leaves the UI
+        # permanently on the initial "Checking..." message.
+        self.start_update()
 
     def _cleanup(self):
         self.closed = True
