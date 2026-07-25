@@ -144,7 +144,7 @@ TRANSLATIONS = {
         "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
         ": Download": ": دانلود",
         "EXIT: Back": "EXIT: بازگشت",
-        "Main server": "سرور اصلی",
+        "online": "آنلاین",
         "Backup server": "سرور پشتیبان",
         "Offline": "آفلاین",
         "Connected to the main server": "اتصال به سرور اصلی برقرار است",
@@ -161,7 +161,7 @@ TRANSLATIONS = {
         "Download finished.\n%d files were copied to:\n%s": "دانلود تمام شد.\n%d فایل در مسیر زیر کپی شد:\n%s",
         "Download failed": "دانلود ناموفق بود",
         "The picons could not be downloaded or verified. Please try again.": "دانلود یا اعتبارسنجی پیکون‌ها انجام نشد. لطفاً دوباره تلاش کنید.",
-        "Online Picons - Download Picons": "Online Picons - دانلود پیکون‌ها",
+        "Download Picons": "دانلود پیکونها",
         "Version: %s": "نسخه: %s",
         "EXIT: Close": "EXIT: بستن",
     },
@@ -199,7 +199,7 @@ TRANSLATIONS = {
         "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
         ": Download": ": تنزيل",
         "EXIT: Back": "EXIT: رجوع",
-        "Main server": "الخادم الرئيسي",
+        "online": "online",
         "Backup server": "خادم احتياطي",
         "Offline": "غير متصل",
         "Connected to the main server": "متصل بالخادم الرئيسي",
@@ -216,7 +216,7 @@ TRANSLATIONS = {
         "Download finished.\n%d files were copied to:\n%s": "اكتمل التنزيل.\nتم نسخ %d ملف إلى:\n%s",
         "Download failed": "فشل التنزيل",
         "The picons could not be downloaded or verified. Please try again.": "تعذر تنزيل الأيقونات أو التحقق منها. يرجى المحاولة مرة أخرى.",
-        "Online Picons - Download Picons": "Online Picons - تنزيل الأيقونات",
+        "Download Picons": "تنزيل الأيقونات",
         "Version: %s": "الإصدار: %s",
         "EXIT: Close": "EXIT: إغلاق",
     },
@@ -675,7 +675,7 @@ class DownloadScreen(Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self.setTitle(tr("Online Picons - Download Picons"))
+        self.setTitle(tr("Download Picons"))
         self.selected = {}
         self.completed = set()
         self.catalog = {}
@@ -776,7 +776,7 @@ class DownloadScreen(Screen):
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "primary":
-            self._set_connection_text(tr("Main server"))
+            self._set_connection_text(tr("Online"))
             self._set_connection_dot("green")
             self["status"].setText(
                 tr("Connected to the main server")
