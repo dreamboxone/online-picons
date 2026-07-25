@@ -53,12 +53,12 @@ from . import PLUGIN_VERSION
 
 REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
-LATEST_RELEASE_URL = "https://github.com/%s/releases/latest" % REPOSITORY
+LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % REPOSITORY
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
 PRIMARY_PICONS_BASE = "https://thee.ir/picons"
 GITHUB_PICONS_BASE = "%s/picons" % RAW_BASE
 PICONS_SOURCES = (
-    ("iran", PRIMARY_PICONS_BASE),
+    ("main", PRIMARY_PICONS_BASE),
     ("github", GITHUB_PICONS_BASE),
 )
 INDEX_FILENAME = "index.json"
@@ -144,11 +144,11 @@ TRANSLATIONS = {
         "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
         ": Download": ": دانلود",
         "EXIT: Back": "EXIT: بازگشت",
-        "Iran server": "سرور ایران",
-        "GitHub backup": "پشتیبان گیت‌هاب",
+        "Main server": "سرور اصلی",
+        "Backup server": "سرور پشتیبان",
         "Offline": "آفلاین",
-        "Connected to the Iranian download server": "اتصال به سرور دانلود ایران برقرار است",
-        "Iranian server is unavailable; GitHub backup is ready": "سرور ایران در دسترس نیست؛ پشتیبان گیت‌هاب آماده است",
+        "Connected to the main server": "اتصال به سرور اصلی برقرار است",
+        "Main server is unavailable; backup server is ready": "سرور اصلی در دسترس نیست؛ سرور پشتیبان آماده است",
         "Neither download server is available": "هیچ‌یک از سرورهای دانلود در دسترس نیست",
         "Downloading is unavailable because no download server is reachable.": "هیچ سرور دانلودی در دسترس نیست؛ امکان دانلود وجود ندارد.",
         "Selected: %s": "انتخاب شد: %s",
@@ -199,11 +199,11 @@ TRANSLATIONS = {
         "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
         ": Download": ": تنزيل",
         "EXIT: Back": "EXIT: رجوع",
-        "Iran server": "خادم إيران",
-        "GitHub backup": "نسخة GitHub الاحتياطية",
+        "Main server": "الخادم الرئيسي",
+        "Backup server": "خادم احتياطي",
         "Offline": "غير متصل",
-        "Connected to the Iranian download server": "تم الاتصال بخادم التنزيل الإيراني",
-        "Iranian server is unavailable; GitHub backup is ready": "الخادم الإيراني غير متاح؛ نسخة GitHub الاحتياطية جاهزة",
+        "Connected to the main server": "متصل بالخادم الرئيسي",
+        "Main server is unavailable; backup server is ready": "الخادم الرئيسي غير متاح؛ الخادم الاحتياطي جاهز.",
         "Neither download server is available": "لا يتوفر أي خادم تنزيل",
         "Downloading is unavailable because no download server is reachable.": "لا يمكن التنزيل لأن خوادم التنزيل غير متاحة.",
         "Selected: %s": "تم الاختيار: %s",
@@ -770,22 +770,22 @@ class DownloadScreen(Screen):
             return
         source_name, self.catalog, self.download_sources = result
         self._show_connectivity(
-            "primary" if source_name == "iran" else "fallback"
+            "primary" if source_name == "main" else "fallback"
         )
 
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "primary":
-            self._set_connection_text(tr("Iran server"))
+            self._set_connection_text(tr("Main server"))
             self._set_connection_dot("green")
             self["status"].setText(
-                tr("Connected to the Iranian download server")
+                tr("Connected to the main server")
             )
         elif state == "fallback":
-            self._set_connection_text(tr("GitHub backup"))
+            self._set_connection_text(tr("Backup server"))
             self._set_connection_dot("yellow")
             self["status"].setText(
-                tr("Iranian server is unavailable; GitHub backup is ready")
+                tr("Main server is unavailable; backup server is ready")
             )
         else:
             self._set_connection_text(tr("Offline"))
@@ -1160,31 +1160,56 @@ class UpdateScreen(Screen):
         thread.start()
 
     def _check_latest(self):
-        response = _request(LATEST_RELEASE_URL, timeout=8)
-        try:
-            final_url = response.geturl()
-        finally:
-            response.close()
-        match = re.search(r"/releases/tag/([^/?#]+)", final_url or "")
-        if not match:
+        raw_release = _read_text(
+            LATEST_RELEASE_API,
+            timeout=12,
+            max_bytes=2 * 1024 * 1024,
+        )
+        release_data = json.loads(raw_release)
+        if not isinstance(release_data, dict):
+            raise RuntimeError("Invalid GitHub release response")
+
+        tag = release_data.get("tag_name")
+        if not tag:
             raise RuntimeError("GitHub release has no version tag")
-        tag = match.group(1)
         latest = tag.lstrip("vV")
+
         if _command_available("dpkg"):
             extension, installer = ".deb", "dpkg"
         elif _command_available("opkg"):
             extension, installer = ".ipk", "opkg"
         else:
             raise RuntimeError("No supported package manager was found")
-        expected = "%s%s_all%s" % (UPDATE_PACKAGE_PREFIX, latest, extension)
-        selected_asset = {
-            "name": expected,
-            "browser_download_url": (
-                "https://github.com/%s/releases/download/%s/%s"
-                % (REPOSITORY, tag, expected)
-            ),
-            "size": 0,
-        }
+
+        expected = "%s%s_all%s" % (
+            UPDATE_PACKAGE_PREFIX,
+            latest,
+            extension,
+        )
+        selected_asset = None
+        assets = release_data.get("assets") or []
+        if not isinstance(assets, list):
+            assets = []
+
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            if asset.get("name") != expected:
+                continue
+            download_url = asset.get("browser_download_url")
+            if not download_url:
+                continue
+            try:
+                asset_size = int(asset.get("size") or 0)
+            except (TypeError, ValueError):
+                asset_size = 0
+            selected_asset = {
+                "name": expected,
+                "browser_download_url": download_url,
+                "size": asset_size,
+            }
+            break
+
         return latest, installer, extension, selected_asset
 
     def _background_finished(self, kind, success, result):
