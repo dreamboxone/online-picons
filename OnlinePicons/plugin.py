@@ -144,7 +144,7 @@ TRANSLATIONS = {
         "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
         ": Download": ": دانلود",
         "EXIT: Back": "EXIT: بازگشت",
-        "Main server": "سرور اصلی",
+        "online": "آنلاین",
         "Backup server": "سرور پشتیبان",
         "Offline": "آفلاین",
         "Connected to the main server": "اتصال به سرور اصلی برقرار است",
@@ -199,7 +199,7 @@ TRANSLATIONS = {
         "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
         ": Download": ": تنزيل",
         "EXIT: Back": "EXIT: رجوع",
-        "Main server": "الخادم الرئيسي",
+        "online": "online",
         "Backup server": "خادم احتياطي",
         "Offline": "غير متصل",
         "Connected to the main server": "متصل بالخادم الرئيسي",
@@ -776,7 +776,7 @@ class DownloadScreen(Screen):
     def _show_connectivity(self, state):
         self.connectivity = state
         if state == "primary":
-            self._set_connection_text(tr("Main server"))
+            self._set_connection_text(tr("Online"))
             self._set_connection_dot("green")
             self["status"].setText(
                 tr("Connected to the main server")
