@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import hashlib
 import json
 import os
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -18,7 +18,6 @@ except ImportError:
     from urllib2 import Request, urlopen, HTTPError
 
 from Components.ActionMap import ActionMap
-from Components.Console import Console
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import (
@@ -56,8 +55,15 @@ REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
 LATEST_RELEASE_URL = "https://github.com/%s/releases/latest" % REPOSITORY
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
-GOOGLE_HOST = "google.com"
-GITHUB_HOST = "github.com"
+PRIMARY_PICONS_BASE = "https://thee.ir/picons"
+GITHUB_PICONS_BASE = "%s/picons" % RAW_BASE
+PICONS_SOURCES = (
+    ("iran", PRIMARY_PICONS_BASE),
+    ("github", GITHUB_PICONS_BASE),
+)
+INDEX_FILENAME = "index.json"
+HEALTH_FILENAME = "health.txt"
+HEALTH_EXPECTED = "ONLINE-PICONS-OK"
 PLUGIN_PATH = os.path.dirname(os.path.abspath(__file__))
 PY2 = sys.version_info[0] == 2
 
@@ -106,10 +112,9 @@ config.plugins.onlinepicons.language = ConfigSelection(
 TRANSLATIONS = {
     "fa": {
         "Update": "به‌روزرسانی",
-        "Update": "به‌روزرسانی",
         "Current version: %s": "نسخه نصب‌شده: %s",
         "Latest version: %s": "آخرین نسخه: %s",
-        "Checking GitHub for the latest version...": "در حال بررسی آخرین نسخه در گیت‌هاب...",
+        "Checking for the latest version...": "در حال بررسی آخرین نسخه در گیت‌هاب...",
         "Downloading update: %d%%": "در حال دانلود به‌روزرسانی: %d%%",
         "Installing update...": "در حال نصب به‌روزرسانی...",
         "No new version is available.": "نسخه جدیدی برای نصب وجود ندارد.",
@@ -119,8 +124,6 @@ TRANSLATIONS = {
         "Update installed successfully. Please restart Enigma2.": "به‌روزرسانی با موفقیت نصب شد. لطفاً Enigma2 را راه‌اندازی مجدد کنید.",
         "Settings": "تنظیمات",
         "Download Picons": "دانلود پیکون‌ها",
-        "Settings": "تنظیمات",
-        "Download Picons": "دانلود پیکونها",
         "Language": "زبان",
         "About": "درباره",
         "GREEN": "سبز",
@@ -137,50 +140,43 @@ TRANSLATIONS = {
         "Internet": "اینترنت",
         "Checking...": "در حال بررسی...",
         "Destination: %s": "مسیر: %s",
-        "Checking internet connection...": "در حال بررسی اتصال اینترنت...",
+        "Checking download servers...": "در حال بررسی سرورهای دانلود...",
         "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
-        ": Download     EXIT: Back": ": دانلود     EXIT: بازگشت",
         ": Download": ": دانلود",
         "EXIT: Back": "EXIT: بازگشت",
-        "Online": "آنلاین",
-        "Connected to I": "به اینترنت متصل هستید",
-        "Limited Internet": "اینترنت محدود",
-        "Internet works, but GitHub is unavailable": "اینترنت برقرار است، اما گیت‌هاب در دسترس نیست",
+        "Iran server": "سرور ایران",
+        "GitHub backup": "پشتیبان گیت‌هاب",
         "Offline": "آفلاین",
-        "No internet connection": "اتصال اینترنت برقرار نیست",
-        "Downloading is unavailable without an internet connection.": "بدون اتصال اینترنت امکان دانلود پیکون وجود ندارد.",
+        "Connected to the Iranian download server": "اتصال به سرور دانلود ایران برقرار است",
+        "Iranian server is unavailable; GitHub backup is ready": "سرور ایران در دسترس نیست؛ پشتیبان گیت‌هاب آماده است",
+        "Neither download server is available": "هیچ‌یک از سرورهای دانلود در دسترس نیست",
+        "Downloading is unavailable because no download server is reachable.": "هیچ سرور دانلودی در دسترس نیست؛ امکان دانلود وجود ندارد.",
         "Selected: %s": "انتخاب شد: %s",
-        "Checking GitHub for %s...": "در حال بررسی %s در گیت‌هاب...",
-        "This file is not uploaded yet. Please try again later.": "این فایل هنوز بارگذاری نشده است. لطفاً بعداً دوباره تلاش کنید.",
-        "Archive not available: %s": "فایل در دسترس نیست: %s",
+        "The download catalog is incomplete. Please reopen this screen.": "فهرست دانلود ناقص است. این صفحه را ببندید و دوباره باز کنید.",
         "Select at least one satellite first.": "ابتدا حداقل یک ماهواره را انتخاب کنید.",
-        "Preparing download support...": "در حال آماده‌سازی ابزار دانلود...",
-        "Download preparation failed": "آماده‌سازی دانلود ناموفق بود",
-        "Download support could not be prepared. Check the internet connection and try again.": "ابزار دانلود آماده نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.",
+        "A tar.gz extraction tool is not available on this receiver.": "ابزار استخراج tar.gz روی این رسیور موجود نیست.",
         "Downloading selected picons...": "در حال دانلود پیکون‌های انتخاب‌شده...",
-        "Downloading: %d%% (%d/%d)": "در حال دانلود: ٪%d (%d/%d)",
+        "Downloading: %d%% (%d/%d)": "در حال دانلود: %d%% (%d/%d)",
         "Download completed: %d PNG files": "دانلود کامل شد: %d فایل PNG",
         "Download finished.\n%d files were copied to:\n%s": "دانلود تمام شد.\n%d فایل در مسیر زیر کپی شد:\n%s",
         "Download failed": "دانلود ناموفق بود",
-        "The picons could not be downloaded or prepared. Please try again.": "دانلود یا آماده‌سازی پیکون‌ها انجام نشد. لطفاً دوباره تلاش کنید.",
+        "The picons could not be downloaded or verified. Please try again.": "دانلود یا اعتبارسنجی پیکون‌ها انجام نشد. لطفاً دوباره تلاش کنید.",
+        "Online Picons - Download Picons": "Online Picons - دانلود پیکون‌ها",
         "Version: %s": "نسخه: %s",
         "EXIT: Close": "EXIT: بستن",
     },
     "ar": {
         "Update": "تحديث",
-        "Update": "تحديث",
         "Current version: %s": "الإصدار المثبت: %s",
         "Latest version: %s": "أحدث إصدار: %s",
-        "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار على ...",
+        "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار على GitHub...",
         "Downloading update: %d%%": "جارٍ تنزيل التحديث: %d%%",
         "Installing update...": "جارٍ تثبيت التحديث...",
         "No new version is available.": "لا يوجد إصدار جديد للتثبيت.",
-        "The update package was not found in the latest release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار على.",
+        "The update package was not found in the latest GitHub release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار على GitHub.",
         "The update could not be completed.": "تعذر إكمال التحديث.",
         "The update check timed out. Please try again.": "انتهت مهلة التحقق من التحديث. يرجى المحاولة مرة أخرى.",
         "Update installed successfully. Please restart Enigma2.": "تم تثبيت التحديث بنجاح. يرجى إعادة تشغيل Enigma2.",
-        "Settings": "الإعدادات",
-        "Download Picons": "تنزيل الأيقونات",
         "Settings": "الإعدادات",
         "Download Picons": "تنزيل الأيقونات",
         "Language": "اللغة",
@@ -199,32 +195,28 @@ TRANSLATIONS = {
         "Internet": "الإنترنت",
         "Checking...": "جارٍ التحقق...",
         "Destination: %s": "المسار: %s",
-        "Checking internet connection...": "جارٍ التحقق من اتصال الإنترنت...",
+        "Checking download servers...": "جارٍ التحقق من خوادم التنزيل...",
         "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
-        ": Download     EXIT: Back": ": تنزيل     EXIT: رجوع",
         ": Download": ": تنزيل",
         "EXIT: Back": "EXIT: رجوع",
-        "Online": "متصل",
-        "Connected to the Internet": "تم الاتصال بالاینترنت",
-        "Limited Internet": "اتصال محدود",
-        "Internet works, but GitHub is unavailable": "الإنترنت يعمل، لكن GitHub غير متاح",
+        "Iran server": "خادم إيران",
+        "GitHub backup": "نسخة GitHub الاحتياطية",
         "Offline": "غير متصل",
-        "No internet connection": "لا يوجد اتصال بالإنترنت",
-        "Downloading is unavailable without an internet connection.": "لا يمكن التنزيل بدون اتصال بالإنترنت.",
+        "Connected to the Iranian download server": "تم الاتصال بخادم التنزيل الإيراني",
+        "Iranian server is unavailable; GitHub backup is ready": "الخادم الإيراني غير متاح؛ نسخة GitHub الاحتياطية جاهزة",
+        "Neither download server is available": "لا يتوفر أي خادم تنزيل",
+        "Downloading is unavailable because no download server is reachable.": "لا يمكن التنزيل لأن خوادم التنزيل غير متاحة.",
         "Selected: %s": "تم الاختيار: %s",
-        "Checking for %s...": "جارٍ التحقق من %s على...",
-        "This file is not uploaded yet. Please try again later.": "لم يتم رفع هذا الملف بعد. يرجى المحاولة لاحقاً.",
-        "Archive not available: %s": "الملف غير متاح: %s",
+        "The download catalog is incomplete. Please reopen this screen.": "قائمة التنزيل غير مكتملة. أغلق هذه الشاشة وافتحها مجدداً.",
         "Select at least one satellite first.": "اختر قمراً صناعياً واحداً على الأقل أولاً.",
-        "Preparing download support...": "جارٍ إعداد أدوات التنزيل...",
-        "Download preparation failed": "فشل إعداد التنزيل",
-        "Download support could not be prepared. Check the internet connection and try again.": "تعذر إعداد أدوات التنزيل. تحقق من الإنترنت وحاول مرة أخرى.",
+        "A tar.gz extraction tool is not available on this receiver.": "أداة استخراج tar.gz غير متوفرة على هذا الجهاز.",
         "Downloading selected picons...": "جارٍ تنزيل الأيقونات المختارة...",
         "Downloading: %d%% (%d/%d)": "جارٍ التنزيل: %d%% (%d/%d)",
         "Download completed: %d PNG files": "اكتمل التنزيل: %d ملف PNG",
         "Download finished.\n%d files were copied to:\n%s": "اكتمل التنزيل.\nتم نسخ %d ملف إلى:\n%s",
         "Download failed": "فشل التنزيل",
-        "The picons could not be downloaded or prepared. Please try again.": "تعذر تنزيل الأيقونات أو إعدادها. يرجى المحاولة مرة أخرى.",
+        "The picons could not be downloaded or verified. Please try again.": "تعذر تنزيل الأيقونات أو التحقق منها. يرجى المحاولة مرة أخرى.",
+        "Online Picons - Download Picons": "Online Picons - تنزيل الأيقونات",
         "Version: %s": "الإصدار: %s",
         "EXIT: Close": "EXIT: إغلاق",
     },
@@ -236,38 +228,39 @@ def tr(message):
     return TRANSLATIONS.get(language, {}).get(message, message)
 
 
-# title, archive stem. Duplicates in the supplied list are intentionally removed.
+# title, archive stem. Every entry has a matching tar.gz archive in index.json.
 SATELLITES = [
-    ("Picons-220x132-15°W (Telstar 12)", "15w"),
-    ("Picons-220x132-8°W (Eutelsat 8W)", "8w"),
-    ("Picons-220x132-7°W (Nilesat 201/301/7W)", "7w"),
-    ("Picons-220x132-4°W (Dror 1)", "4w"),
-    ("Picons-220x132-0.8°W (Thor 5/6/7/Intelsat 10-02)", "0.8w"),
-    ("Picons-220x132-1.9°E (BulgariaSat 1)", "1.9e"),
-    ("Picons-220x132-3°E (Eutelsat 3B)", "3e"),
-    ("Picons-220x132-4.8°E (Astra 4A/SES 5)", "4.8e"),
-    ("Picons-220x132-7°E (Eutelsat 7B/7C)", "7e"),
-    ("Picons-220x132-9°E (Eutelsat 9B)", "9e"),
-    ("Picons-220x132-13.0°E (Hotbird 13F/13G)", "13e"),
-    ("Picons-220x132-16.0°E (Eutelsat 16A)", "16e"),
-    ("Picons-220x132-19.2°E (Astra 1N/1P)", "19.2e"),
-	("Picons-220x132-21.5°E (Eutelsat 21B)", "21.5e"),
-	("Picons-220x132-23.5°E (Astra 3C)", "23.5e"),
-    ("Picons-220x132-26.0°E (Badr 7/8-Es'hail 2)", "26e"),
-	("Picons-220x132-40.0°E (Express AM7)", "40e"),
-    ("Picons-220x132-42.0°E (Turksat 3A/4A/5B/6A)", "42e"),
-	("Picons-220x132-45.0°E (Azerspace 2/Intelsat 38)", "45e"),
-    ("Picons-220x132-46.0°E (Azeraspace 1)", "46e"),
-    ("Picons-220x132-52.0°E (TurkmenÄlem/MonacoSat)", "52e"),
-    ("Picons-220x132-52.5°E (Al Yah 1)", "52.5e"),
-    ("Picons-220x132-53.0°E (Express AM6)", "53e"),
-    ("Picons-220x132-56.0°E (Express AT2)", "53e"),	
-    ("Picons-220x132-62.0°E (Intelsat 39)", "62e"),
-    ("Picons-220x132-68.5°E (Intelsat 20/36)", "68.5e"),
-    ("Picons-220x132-70.5°E (Eutelsat 70B)", "70.5e"),
-    ("Picons-220x132-78.5°E (Thaicom 6/8)", "78.5e"),
-    ("Picons-220x132-80.0°E (Express 80)", "80e"),
-    ("Picons-220x132-97.5°E (G-Sat 9)", "97.5e"),
+    ("220x132-15°W (Telstar 12)", "15w"),
+    ("220x132-8°W (Eutelsat 8W)", "8w"),
+    ("220x132-7°W (Nilesat 201/301/7W)", "7w"),
+    ("220x132-4°W (Dror 1)", "4w"),
+    ("220x132-0.8°W (Thor 5/6/7/Intelsat 10-02)", "0.8w"),
+    ("220x132-1.9°E (BulgariaSat 1)", "1.9e"),
+    ("220x132-3°E (Eutelsat 3B)", "3e"),
+    ("220x132-4.8°E (Astra 4A/SES 5)", "4.8e"),
+    ("220x132-7°E (Eutelsat 7B/7C)", "7e"),
+    ("220x132-9°E (Eutelsat 9B)", "9e"),
+    ("220x132-13.0°E (Hotbird 13F/13G)", "13e"),
+    ("220x132-16.0°E (Eutelsat 16A)", "16e"),
+    ("220x132-19.2°E (Astra 1N/1P)", "19.2e"),
+    ("220x132-21.5°E (Eutelsat 21B)", "21.5e"),
+    ("220x132-23.5°E (Astra 3C)", "23.5e"),
+    ("220x132-26.0°E (Badr 7/8-Es'hail 2)", "26e"),
+    ("220x132-40.0°E (Express AM7)", "40e"),
+    ("220x132-42.0°E (Turksat 3A/4A/5B/6A)", "42e"),
+    ("220x132-45.0°E (Azerspace 2/Intelsat 38)", "45e"),
+    ("220x132-46.0°E (Azerspace 1)", "46e"),
+    ("220x132-52.0°E (TürkmenÄlem/MonacoSat)", "52e"),
+    ("220x132-52.5°E (Al Yah 1)", "52.5e"),
+    ("220x132-53.0°E (Express AM6)", "53e"),
+    ("220x132-56.0°E (Express AT2)", "56e"),
+    ("220x132-57.0°E", "57e"),
+    ("220x132-62.0°E (Intelsat 39)", "62e"),
+    ("220x132-68.5°E (Intelsat 20/36)", "68.5e"),
+    ("220x132-70.5°E (Eutelsat 70B)", "70.5e"),
+    ("220x132-78.5°E (Thaicom 6/8)", "78.5e"),
+    ("220x132-80.0°E (Express 80)", "80e"),
+    ("220x132-97.5°E (G-Sat 9)", "97.5e"),
 ]
 
 
@@ -279,8 +272,11 @@ def _timer_start(timer, delay, callback):
     timer.start(delay, True)
 
 
-def _request(url, method=None, timeout=8):
-    headers = {"User-Agent": "OnlinePicons/%s" % PLUGIN_VERSION}
+def _request(url, method=None, timeout=12):
+    headers = {
+        "User-Agent": "OnlinePicons/%s" % PLUGIN_VERSION,
+        "Cache-Control": "no-cache",
+    }
     try:
         request = Request(url, headers=headers, method=method or "GET")
     except TypeError:  # Python 2 Request has no method argument.
@@ -290,43 +286,83 @@ def _request(url, method=None, timeout=8):
     return urlopen(request, timeout=timeout)
 
 
-def _url_exists(url):
+def _join_url(base_url, filename):
+    return "%s/%s" % (base_url.rstrip("/"), filename.lstrip("/"))
+
+
+def _read_text(url, timeout=10, max_bytes=1024 * 1024):
+    response = _request(url, timeout=timeout)
     try:
-        response = _request(url, method="HEAD", timeout=8)
-        code = getattr(response, "status", response.getcode())
+        data = response.read(max_bytes + 1)
+    finally:
         response.close()
-        return 200 <= code < 400
-    except HTTPError as error:
-        return error.code not in (404, 410) and error.code < 500
-    except Exception:
-        return False
+    if len(data) > max_bytes:
+        raise RuntimeError("Remote file is too large")
+    if not isinstance(data, text_type):
+        data = data.decode("utf-8", "replace")
+    return data
 
 
-def _find_archive(stem):
-    url = "%s/%s.tar.gz" % (RAW_BASE, stem)
-    return url if _url_exists(url) else None
+def _load_catalog_from_source(base_url):
+    health = _read_text(
+        _join_url(base_url, HEALTH_FILENAME), timeout=8, max_bytes=256
+    ).strip()
+    if health != HEALTH_EXPECTED:
+        raise RuntimeError("Invalid health response")
 
+    raw_index = _read_text(
+        _join_url(base_url, INDEX_FILENAME), timeout=12, max_bytes=1024 * 1024
+    )
+    index_data = json.loads(raw_index)
+    if not isinstance(index_data, dict):
+        raise RuntimeError("Invalid download catalog")
+    if int(index_data.get("schema_version", 0) or 0) != 1:
+        raise RuntimeError("Unsupported catalog schema")
+    if index_data.get("archive_format") != "tar.gz":
+        raise RuntimeError("Unsupported archive format")
 
-def _archive_stem(title):
-    """Derive the tar.gz name from the orbital position in the visible title."""
-    match = re.search(r"Picons-220x132-([0-9]+(?:\.[0-9]+)?)", title)
-    if not match:
-        return None
-    position = match.group(1)
-    if "." in position:
-        position = position.rstrip("0").rstrip(".")
-    orbital_token = title[match.end():].split(" ", 1)[0].upper()
-    direction = "e" if "E" in orbital_token else "w"
-    return position + direction
+    health_info = index_data.get("health") or {}
+    expected_health = health_info.get("expected")
+    if expected_health and expected_health != HEALTH_EXPECTED:
+        raise RuntimeError("Catalog health value does not match")
 
+    file_items = index_data.get("files")
+    if not isinstance(file_items, list):
+        raise RuntimeError("Catalog has no file list")
 
-def _extractor_available():
-    for command in ("unrar", "7z", "7za", "bsdtar"):
-        for directory in os.environ.get("PATH", "").split(os.pathsep):
-            executable = os.path.join(directory, command)
-            if os.path.isfile(executable) and os.access(executable, os.X_OK):
-                return True
-    return False
+    catalog = {}
+    archive_pattern = re.compile(
+        r"^[0-9]+(?:\.[0-9]+)?[ew]\.tar\.gz$", re.IGNORECASE
+    )
+    sha_pattern = re.compile(r"^[0-9a-f]{64}$")
+    for item in file_items:
+        if not isinstance(item, dict) or not item.get("enabled", True):
+            continue
+        name = item.get("name")
+        if not isinstance(name, text_type) or not archive_pattern.match(name):
+            raise RuntimeError("Catalog contains an invalid archive name")
+        stem = name[:-7].lower()
+        position = item.get("satellite_position")
+        if position and position.lower() != stem:
+            raise RuntimeError("Catalog position does not match archive name")
+        try:
+            size = int(item.get("size") or 0)
+        except (TypeError, ValueError):
+            size = 0
+        checksum = (item.get("sha256") or "").lower()
+        if size <= 0 or not sha_pattern.match(checksum):
+            raise RuntimeError("Catalog contains invalid archive metadata")
+        catalog[stem] = {
+            "name": name,
+            "size": size,
+            "sha256": checksum,
+        }
+
+    expected_stems = set(stem for title, stem in SATELLITES)
+    missing_stems = sorted(expected_stems.difference(set(catalog.keys())))
+    if missing_stems:
+        raise RuntimeError("Catalog is missing: %s" % ", ".join(missing_stems))
+    return catalog
 
 
 def _command_available(command):
@@ -337,9 +373,12 @@ def _command_available(command):
     return False
 
 
+def _extractor_available():
+    return _command_available("tar") or _command_available("bsdtar")
+
+
 def _version_tuple(value):
     return tuple(int(number) for number in re.findall(r"\d+", value or ""))
-
 
 class OnlinePiconsMain(Screen):
     skin = """
@@ -639,19 +678,10 @@ class DownloadScreen(Screen):
         self.setTitle(tr("Online Picons - Download Picons"))
         self.selected = {}
         self.completed = set()
-        self.available_urls = {}
+        self.catalog = {}
+        self.download_sources = []
         self.busy = False
         self.connectivity = "checking"
-        self.connectivity_check_done = False
-        self.ping_pending = set()
-        self.ping_results = {}
-        self.ping_console = Console()
-        self.ping_timeout_timer = eTimer()
-        self.probe_console = Console()
-        self.probe_timeout_timer = eTimer()
-        self.active_probe = None
-        self.extractor_console = Console()
-        self.pending_download_stems = None
         self.screen_closed = False
         self["online"] = Label(tr("Internet"))
         self["onlineDot"] = Pixmap()
@@ -668,7 +698,7 @@ class DownloadScreen(Screen):
         self["satellites"].l.setItemHeight(46)
         self["progress"] = ProgressBar()
         self["progress"].setValue(0)
-        self["status"] = Label(tr("Checking internet connection..."))
+        self["status"] = Label(tr("Checking download servers..."))
         self["keysLeft"] = Label(tr("OK: Select/Unselect     "))
         self["greenKey"] = Label(tr("GREEN"))
         self["downloadKey"] = Label(tr(": Download"))
@@ -685,30 +715,10 @@ class DownloadScreen(Screen):
         self.onClose.append(self._cleanup)
         self.onShown.append(self._resize_connection_label)
         self.refresh_list()
-        self._start_connectivity_check()
+        self._run_background("catalog", self._check_download_servers)
 
     def _cleanup(self):
         self.screen_closed = True
-        try:
-            self.ping_timeout_timer.stop()
-        except Exception:
-            pass
-        try:
-            self.probe_timeout_timer.stop()
-        except Exception:
-            pass
-        try:
-            self.ping_console.killAll()
-        except Exception:
-            pass
-        try:
-            self.probe_console.killAll()
-        except Exception:
-            pass
-        try:
-            self.extractor_console.killAll()
-        except Exception:
-            pass
 
     def _run_background(self, kind, function, *args):
         def runner():
@@ -731,85 +741,56 @@ class DownloadScreen(Screen):
     def _background_finished(self, kind, success, result):
         if self.screen_closed:
             return
-        if kind == "download":
+        if kind == "catalog":
+            self._catalog_finished(success, result)
+        elif kind == "download":
             self.busy = False
             self._download_finished(success, result)
 
-    def _start_connectivity_check(self):
-        self.ping_pending = set(("google", "github"))
-        commands = (
-            ("google", "ping -c 1 -W 3 %s" % GOOGLE_HOST),
-            ("github", "ping -c 1 -W 3 %s" % GITHUB_HOST),
-        )
-        _timer_start(
-            self.ping_timeout_timer,
-            6000,
-            self._ping_check_timed_out,
-        )
-        for key, command in commands:
+    def _check_download_servers(self):
+        errors = []
+        for source_name, base_url in PICONS_SOURCES:
             try:
-                self.ping_console.ePopen(
-                    command,
-                    self._ping_finished,
-                    [key],
+                catalog = _load_catalog_from_source(base_url)
+                ordered_sources = [(source_name, base_url)]
+                ordered_sources.extend(
+                    source for source in PICONS_SOURCES
+                    if source[0] != source_name
                 )
-            except Exception:
-                self.ping_results[key] = False
-                self.ping_pending.discard(key)
-        if not self.ping_pending:
-            self._finish_connectivity_check()
+                return source_name, catalog, ordered_sources
+            except Exception as error:
+                errors.append("%s: %s" % (source_name, error))
+        raise RuntimeError("; ".join(errors))
 
-    def _ping_finished(self, output, return_code, extra_args):
-        if self.connectivity_check_done:
+    def _catalog_finished(self, success, result):
+        if not success:
+            self.catalog = {}
+            self.download_sources = []
+            self._show_connectivity("offline")
             return
-        key = extra_args[0]
-        self.ping_results[key] = return_code == 0
-        self.ping_pending.discard(key)
-        if not self.ping_pending:
-            self._finish_connectivity_check()
-
-    def _ping_check_timed_out(self):
-        if self.connectivity_check_done:
-            return
-        for key in self.ping_pending:
-            self.ping_results[key] = False
-        self.ping_pending.clear()
-        self._finish_connectivity_check()
-        try:
-            self.ping_console.killAll()
-        except Exception:
-            pass
-
-    def _finish_connectivity_check(self):
-        if self.connectivity_check_done:
-            return
-        self.connectivity_check_done = True
-        try:
-            self.ping_timeout_timer.stop()
-        except Exception:
-            pass
-        google = self.ping_results.get("google", False)
-        github = self.ping_results.get("github", False)
-        if not google:
-            state = "offline"
-        else:
-            state = "online" if github else "google_only"
-        self._show_connectivity(state)
+        source_name, self.catalog, self.download_sources = result
+        self._show_connectivity(
+            "primary" if source_name == "iran" else "fallback"
+        )
 
     def _show_connectivity(self, state):
         self.connectivity = state
-        if state == "online":
-            self._set_connection_text(tr("Online"))
+        if state == "primary":
+            self._set_connection_text(tr("Iran server"))
             self._set_connection_dot("green")
-            self["status"].setText(tr("Connected to Google and GitHub"))
-        elif state == "google_only":
-            self._set_connection_text(tr("Limited Internet"))
+            self["status"].setText(
+                tr("Connected to the Iranian download server")
+            )
+        elif state == "fallback":
+            self._set_connection_text(tr("GitHub backup"))
             self._set_connection_dot("yellow")
-            self["status"].setText(tr("Internet works, but GitHub is unavailable"))
+            self["status"].setText(
+                tr("Iranian server is unavailable; GitHub backup is ready")
+            )
         else:
             self._set_connection_text(tr("Offline"))
             self._set_connection_dot("red")
-            self["status"].setText(tr("No internet connection"))
+            self["status"].setText(tr("Neither download server is available"))
 
     def _set_connection_text(self, text):
         self["connection"].setText(text)
@@ -833,8 +814,7 @@ class DownloadScreen(Screen):
     def refresh_list(self):
         index = self["satellites"].getSelectedIndex()
         rows = []
-        for title, configured_stem in SATELLITES:
-            stem = _archive_stem(title) or configured_stem
+        for title, stem in SATELLITES:
             display_title = title
             if PY2 and isinstance(display_title, str):
                 display_title = display_title.decode("utf-8")
@@ -867,104 +847,55 @@ class DownloadScreen(Screen):
                     flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
                     text=_menu_text(""),
                 ))
-            row.append(
-                MultiContentEntryText(
-                    pos=(42, 0),
-                    size=(1055, 46),
-                    font=0,
-                    flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
-                    text=_menu_text(display_title),
-                )
-            )
+            row.append(MultiContentEntryText(
+                pos=(42, 0),
+                size=(1055, 46),
+                font=0,
+                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                text=_menu_text(display_title),
+            ))
             rows.append(row)
         self["satellites"].setList(rows)
-        self["satellites"].moveToIndex(index)
+        if rows:
+            self["satellites"].moveToIndex(
+                max(0, min(index, len(rows) - 1))
+            )
 
     def toggle_current(self):
         if self.busy:
             return
-        if self.connectivity != "online":
+        if self.connectivity not in ("primary", "fallback"):
             self.session.open(
                 MessageBox,
-                tr("Downloading is unavailable without an internet connection."),
+                tr("Downloading is unavailable because no download server is reachable."),
                 MessageBox.TYPE_ERROR,
                 timeout=5,
             )
             return
         index = self["satellites"].getSelectedIndex()
-        title, configured_stem = SATELLITES[index]
-        stem = _archive_stem(title) or configured_stem
-        if stem in self.selected:
-            del self.selected[stem]
-            self.refresh_list()
-            return
-        if stem in self.available_urls:
-            self.selected[stem] = title
-            self.refresh_list()
-            self["status"].setText(tr("Selected: %s") % title)
-            return
-        self.busy = True
-        self["status"].setText(tr("Checking GitHub for %s...") % title)
-        url = "%s/%s.rar" % (RAW_BASE, stem)
-        self.active_probe = (index, title, stem, url)
-        _timer_start(
-            self.probe_timeout_timer,
-            1900,
-            self._probe_timed_out,
-        )
-        try:
-            self.probe_console.ePopen(
-                "wget -q --spider -T 2 %s" % url,
-                self._probe_command_finished,
-                [],
-            )
-        except Exception:
-            self._finish_probe(False)
-
-    def _probe_command_finished(self, output, return_code, extra_args):
-        if self.active_probe is not None:
-            self._finish_probe(return_code == 0)
-
-    def _probe_timed_out(self):
-        if self.active_probe is None:
-            return
-        self._finish_probe(False)
-        try:
-            self.probe_console.killAll()
-        except Exception:
-            pass
-
-    def _finish_probe(self, available):
-        if self.active_probe is None:
-            return
-        try:
-            self.probe_timeout_timer.stop()
-        except Exception:
-            pass
-        index, title, stem, url = self.active_probe
-        self.active_probe = None
-        self.busy = False
-        if not available:
+        title, stem = SATELLITES[index]
+        if stem not in self.catalog:
             self.session.open(
                 MessageBox,
-                _menu_text(tr("This file is not uploaded yet. Please try again later.")),
-                MessageBox.TYPE_INFO,
-                timeout=5,
+                tr("The download catalog is incomplete. Please reopen this screen."),
+                MessageBox.TYPE_ERROR,
+                timeout=6,
             )
-            self["status"].setText(tr("Archive not available: %s") % title)
             return
-        self.available_urls[stem] = url
-        self.selected[stem] = title
+        if stem in self.selected:
+            del self.selected[stem]
+        else:
+            self.selected[stem] = title
+            self["status"].setText(tr("Selected: %s") % title)
         self.refresh_list()
-        self["status"].setText(tr("Selected: %s") % title)
 
     def download_selected(self):
         if self.busy:
             return
-        if self.connectivity != "online":
+        if self.connectivity not in ("primary", "fallback"):
             self.session.open(
                 MessageBox,
-                tr("Downloading is unavailable without an internet connection."),
+                tr("Downloading is unavailable because no download server is reachable."),
                 MessageBox.TYPE_ERROR,
                 timeout=5,
             )
@@ -977,45 +908,15 @@ class DownloadScreen(Screen):
                 timeout=5,
             )
             return
-        stems = list(self.selected.keys())
         if not _extractor_available():
-            self.busy = True
-            self.pending_download_stems = stems
-            self["status"].setText(tr("Preparing download support..."))
-            command = (
-                "sh -c '"
-                "apt-get update >/tmp/online-picons-setup.log 2>&1 || true; "
-                "apt-get install -y unrar >>/tmp/online-picons-setup.log 2>&1 || "
-                "apt-get install -y unrar-free >>/tmp/online-picons-setup.log 2>&1 || "
-                "apt-get install -y p7zip-full >>/tmp/online-picons-setup.log 2>&1 || "
-                "apt-get install -y p7zip >>/tmp/online-picons-setup.log 2>&1"
-                "'"
-            )
-            try:
-                self.extractor_console.ePopen(
-                    command,
-                    self._extractor_install_finished,
-                    [],
-                )
-            except Exception:
-                self._extractor_install_finished("", 1, [])
-            return
-        self._start_download(stems)
-
-    def _extractor_install_finished(self, output, return_code, extra_args):
-        stems = self.pending_download_stems
-        self.pending_download_stems = None
-        if return_code != 0 or not _extractor_available():
-            self.busy = False
-            self["status"].setText(tr("Download preparation failed"))
             self.session.open(
                 MessageBox,
-                tr("Download support could not be prepared. Check the internet connection and try again."),
+                tr("A tar.gz extraction tool is not available on this receiver."),
                 MessageBox.TYPE_ERROR,
                 timeout=7,
             )
             return
-        self._start_download(stems)
+        self._start_download(list(self.selected.keys()))
 
     def _start_download(self, stems):
         self.busy = True
@@ -1037,45 +938,28 @@ class DownloadScreen(Screen):
             tr("Downloading: %d%% (%d/%d)") % (percent, current, total)
         )
 
-    def _download_all(self, stems):
-        destination = config.plugins.onlinepicons.destination.value
-        if not destination.startswith("/"):
-            raise RuntimeError("Invalid destination path")
-        if not os.path.isdir(destination):
-            os.makedirs(destination)
-        installed = 0
-        completed_stems = []
-        temp_root = tempfile.mkdtemp(prefix="online-picons-", dir="/tmp")
-        try:
-            total = len(stems)
-            for item_index, stem in enumerate(stems):
-                current = item_index + 1
-                self._report_download_progress(
-                    int(item_index * 100.0 / total), current, total
-                )
-                url = self.available_urls.get(stem) or _find_archive(stem)
-                if not url:
-                    continue
-                extension = os.path.splitext(url)[1].lower()
-                archive = os.path.join(temp_root, stem + extension)
+    def _download_one_archive(
+        self, metadata, target, item_index, current, total
+    ):
+        errors = []
+        for source_name, base_url in self.download_sources:
+            url = _join_url(base_url, metadata["name"])
+            try:
                 response = _request(url, timeout=45)
-                try:
-                    content_length = int(
-                        response.info().get("Content-Length", "0") or "0"
-                    )
-                except (TypeError, ValueError):
-                    content_length = 0
                 downloaded = 0
-                with open(archive, "wb") as output:
-                    while True:
-                        block = response.read(1024 * 128)
-                        if not block:
-                            break
-                        output.write(block)
-                        downloaded += len(block)
-                        if content_length:
+                digest = hashlib.sha256()
+                try:
+                    with open(target, "wb") as output:
+                        while True:
+                            block = response.read(128 * 1024)
+                            if not block:
+                                break
+                            output.write(block)
+                            digest.update(block)
+                            downloaded += len(block)
                             item_fraction = min(
-                                1.0, float(downloaded) / content_length
+                                1.0,
+                                float(downloaded) / metadata["size"],
                             )
                             percent = int(
                                 (item_index + item_fraction) * 100.0 / total
@@ -1083,10 +967,55 @@ class DownloadScreen(Screen):
                             self._report_download_progress(
                                 percent, current, total
                             )
-                response.close()
+                finally:
+                    response.close()
+
+                if downloaded != metadata["size"]:
+                    raise RuntimeError("Downloaded size does not match index.json")
+                if digest.hexdigest().lower() != metadata["sha256"]:
+                    raise RuntimeError("SHA-256 does not match index.json")
+                return source_name
+            except Exception as error:
+                errors.append("%s: %s" % (source_name, error))
+                try:
+                    os.unlink(target)
+                except Exception:
+                    pass
+        raise RuntimeError(
+            "Could not download %s (%s)"
+            % (metadata["name"], "; ".join(errors))
+        )
+
+    def _download_all(self, stems):
+        destination = config.plugins.onlinepicons.destination.value
+        if not destination.startswith("/"):
+            raise RuntimeError("Invalid destination path")
+        if not os.path.isdir(destination):
+            os.makedirs(destination)
+
+        installed = 0
+        completed_stems = []
+        temp_root = tempfile.mkdtemp(prefix="online-picons-", dir="/tmp")
+        try:
+            total = len(stems)
+            for item_index, stem in enumerate(stems):
+                current = item_index + 1
+                metadata = self.catalog.get(stem)
+                if not metadata:
+                    raise RuntimeError("Archive is missing from index.json")
+                self._report_download_progress(
+                    int(item_index * 100.0 / total), current, total
+                )
+                archive = os.path.join(temp_root, metadata["name"])
+                self._download_one_archive(
+                    metadata, archive, item_index, current, total
+                )
+
                 unpacked = os.path.join(temp_root, "unpacked-" + stem)
                 os.makedirs(unpacked)
-                self._extract(archive, unpacked, extension)
+                self._extract(archive, unpacked)
+
+                archive_png_count = 0
                 for root, dirs, files in os.walk(unpacked):
                     for filename in files:
                         if filename.lower().endswith(".png"):
@@ -1094,7 +1023,10 @@ class DownloadScreen(Screen):
                                 os.path.join(root, filename),
                                 os.path.join(destination, filename),
                             )
+                            archive_png_count += 1
                             installed += 1
+                if archive_png_count == 0:
+                    raise RuntimeError("The archive contains no PNG files")
                 completed_stems.append(stem)
                 self._report_download_progress(
                     int(current * 100.0 / total), current, total
@@ -1103,27 +1035,25 @@ class DownloadScreen(Screen):
         finally:
             shutil.rmtree(temp_root, ignore_errors=True)
 
-    def _extract(self, archive, destination, extension):
-        commands = [
-            ["unrar", "x", "-o+", archive, destination + os.sep],
-            ["7z", "x", "-y", "-o" + destination, archive],
-            ["7za", "x", "-y", "-o" + destination, archive],
-            ["bsdtar", "-xf", archive, "-C", destination],
-            ["tar", "-xf", archive, "-C", destination],
-        ]
+    def _extract(self, archive, destination):
+        commands = []
+        if _command_available("tar"):
+            commands.append(["tar", "-xzf", archive, "-C", destination])
+        if _command_available("bsdtar"):
+            commands.append(["bsdtar", "-xzf", archive, "-C", destination])
         for command in commands:
             try:
                 process = subprocess.Popen(
-                    command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                 )
                 process.communicate()
                 if process.returncode == 0:
                     return
             except OSError:
                 pass
-        raise RuntimeError(
-            "RAR extraction failed"
-        )
+        raise RuntimeError("TAR.GZ extraction failed")
 
     def _download_finished(self, success, result):
         if success:
@@ -1147,11 +1077,10 @@ class DownloadScreen(Screen):
             self["status"].setText(tr("Download failed"))
             self.session.open(
                 MessageBox,
-                tr("The picons could not be downloaded or prepared. Please try again."),
+                tr("The picons could not be downloaded or verified. Please try again."),
                 MessageBox.TYPE_ERROR,
                 timeout=8,
             )
-
 
 class UpdateScreen(Screen):
     skin = """
