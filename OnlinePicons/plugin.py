@@ -1118,7 +1118,7 @@ class UpdateScreen(Screen):
         self.started = False
         self.closed = False
         self.check_pending = False
-        self.check_timeout_timer = eTimer()
+        self.check_timeout_call = None
         self.onShown.append(self.start_update)
         self.onClose.append(self._cleanup)
 
@@ -1126,26 +1126,32 @@ class UpdateScreen(Screen):
         self.closed = True
         self.check_pending = False
         try:
-            self.check_timeout_timer.stop()
+            if self.check_timeout_call is not None and self.check_timeout_call.active():
+                self.check_timeout_call.cancel()
         except Exception:
             pass
+        self.check_timeout_call = None
 
     def start_update(self):
         if self.started:
             return
         self.started = True
         self.check_pending = True
-        # Keep the update check shorter than Enigma2 watchdog/pop-up delays.
-        _timer_start(self.check_timeout_timer, 6000, self._check_timed_out)
+        # reactor.callLater is more reliable than eTimer across Enigma2 images.
+        # It also releases the Update screen even if DNS/urlopen hangs in the worker.
+        self.check_timeout_call = reactor.callLater(7, self._check_timed_out)
         self._run_background("check", self._check_latest)
 
     def _check_timed_out(self):
         if self.closed or not self.check_pending:
             return
         self.check_pending = False
+        self.check_timeout_call = None
+        self["progress"].setValue(0)
+        self["percent"].setText("--")
         message = tr("The update check timed out. Please try again.")
         self["status"].setText(message)
-        # Show the result inside this screen; avoid opening a second Enigma2 dialog.
+        # Keep the message inside this screen; do not open a global Enigma2 dialog.
 
     def _run_background(self, kind, function, *args):
         def worker():
@@ -1163,7 +1169,7 @@ class UpdateScreen(Screen):
     def _check_latest(self):
         raw_release = _read_text(
             LATEST_RELEASE_API,
-            timeout=5,
+            timeout=4,
             max_bytes=512 * 1024,
         )
         release_data = json.loads(raw_release)
@@ -1225,9 +1231,11 @@ class UpdateScreen(Screen):
                 return
             self.check_pending = False
             try:
-                self.check_timeout_timer.stop()
+                if self.check_timeout_call is not None and self.check_timeout_call.active():
+                    self.check_timeout_call.cancel()
             except Exception:
                 pass
+            self.check_timeout_call = None
         if not success:
             # Keep the Update screen responsive and report the error in-place.
             self["progress"].setValue(0)
