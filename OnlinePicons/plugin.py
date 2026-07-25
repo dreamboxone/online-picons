@@ -161,7 +161,7 @@ TRANSLATIONS = {
         "Download finished.\n%d files were copied to:\n%s": "دانلود تمام شد.\n%d فایل در مسیر زیر کپی شد:\n%s",
         "Download failed": "دانلود ناموفق بود",
         "The picons could not be downloaded or verified. Please try again.": "دانلود یا اعتبارسنجی پیکون‌ها انجام نشد. لطفاً دوباره تلاش کنید.",
-        "Online Picons - Download Picons": "Online Picons - دانلود پیکون‌ها",
+        "Download Picons": "دانلود پیکونها",
         "Version: %s": "نسخه: %s",
         "EXIT: Close": "EXIT: بستن",
     },
@@ -216,7 +216,7 @@ TRANSLATIONS = {
         "Download finished.\n%d files were copied to:\n%s": "اكتمل التنزيل.\nتم نسخ %d ملف إلى:\n%s",
         "Download failed": "فشل التنزيل",
         "The picons could not be downloaded or verified. Please try again.": "تعذر تنزيل الأيقونات أو التحقق منها. يرجى المحاولة مرة أخرى.",
-        "Online Picons - Download Picons": "Online Picons - تنزيل الأيقونات",
+        "Download Picons": "تنزيل الأيقونات",
         "Version: %s": "الإصدار: %s",
         "EXIT: Close": "EXIT: إغلاق",
     },
@@ -675,7 +675,7 @@ class DownloadScreen(Screen):
 
     def __init__(self, session):
         Screen.__init__(self, session)
-        self.setTitle(tr("Online Picons - Download Picons"))
+        self.setTitle(tr("Download Picons"))
         self.selected = {}
         self.completed = set()
         self.catalog = {}
