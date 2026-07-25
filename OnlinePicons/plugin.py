@@ -1135,7 +1135,8 @@ class UpdateScreen(Screen):
             return
         self.started = True
         self.check_pending = True
-        _timer_start(self.check_timeout_timer, 12000, self._check_timed_out)
+        # Keep the update check shorter than Enigma2 watchdog/pop-up delays.
+        _timer_start(self.check_timeout_timer, 6000, self._check_timed_out)
         self._run_background("check", self._check_latest)
 
     def _check_timed_out(self):
@@ -1144,7 +1145,7 @@ class UpdateScreen(Screen):
         self.check_pending = False
         message = tr("The update check timed out. Please try again.")
         self["status"].setText(message)
-        self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
+        # Show the result inside this screen; avoid opening a second Enigma2 dialog.
 
     def _run_background(self, kind, function, *args):
         def worker():
@@ -1162,8 +1163,8 @@ class UpdateScreen(Screen):
     def _check_latest(self):
         raw_release = _read_text(
             LATEST_RELEASE_API,
-            timeout=12,
-            max_bytes=2 * 1024 * 1024,
+            timeout=5,
+            max_bytes=512 * 1024,
         )
         release_data = json.loads(raw_release)
         if not isinstance(release_data, dict):
@@ -1173,6 +1174,10 @@ class UpdateScreen(Screen):
         if not tag:
             raise RuntimeError("GitHub release has no version tag")
         latest = tag.lstrip("vV")
+
+        # When the installed version is already current, skip package/asset work.
+        if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
+            return latest, None, None, None
 
         if _command_available("dpkg"):
             extension, installer = ".deb", "dpkg"
@@ -1224,15 +1229,19 @@ class UpdateScreen(Screen):
             except Exception:
                 pass
         if not success:
+            # Keep the Update screen responsive and report the error in-place.
+            self["progress"].setValue(0)
+            self["percent"].setText("--")
             self["status"].setText(tr("The update could not be completed."))
-            self.session.open(MessageBox, "%s\n%s" % (tr("The update could not be completed."), result), MessageBox.TYPE_ERROR, timeout=8)
             return
         if kind == "check":
             latest = result[0]
             self["latest"].setText(tr("Latest version: %s") % latest)
             if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
+                # No nested MessageBox: show the answer immediately on this screen.
+                self["progress"].setValue(100)
+                self["percent"].setText("100%")
                 self["status"].setText(tr("No new version is available."))
-                self.session.open(MessageBox, tr("No new version is available."), MessageBox.TYPE_INFO, timeout=5)
                 return
             if result[3] is None:
                 message = tr("The update package was not found in the latest GitHub release.")
