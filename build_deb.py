@@ -38,34 +38,24 @@ IGNORED_SUFFIXES = {
 }
 
 
-def plugin_version():
-    """Read the authoritative version from OnlinePicons/__init__.py."""
-    init_file = PLUGIN_SOURCE / "__init__.py"
-    content = init_file.read_text(encoding="utf-8")
+def package_version():
+    """Read the authoritative Debian package version from DEBIAN/control."""
+    control_file = DEBIAN_SOURCE / "control"
+    content = control_file.read_text(encoding="utf-8")
     match = re.search(
-        r'^\s*PLUGIN_VERSION\s*=\s*["\']([^"\']+)["\']',
+        r"^\s*Version:\s*(\S+)\s*$",
         content,
         re.MULTILINE,
     )
     if not match:
-        raise RuntimeError("PLUGIN_VERSION was not found in OnlinePicons/__init__.py")
+        raise RuntimeError("Version field was not found in DEBIAN/control")
     return match.group(1).strip()
 
 
-def package_control(version):
-    """Return control metadata with Version synchronized to the plugin."""
+def package_control():
+    """Return the original Debian control metadata unchanged."""
     control_file = DEBIAN_SOURCE / "control"
-    content = control_file.read_text(encoding="utf-8").replace("\r\n", "\n")
-    updated, count = re.subn(
-        r"^Version:\s*.*$",
-        "Version: %s" % version,
-        content,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    if count != 1:
-        raise RuntimeError("Version field was not found in DEBIAN/control")
-    return updated.encode("utf-8")
+    return control_file.read_bytes().replace(b"\r\n", b"\n")
 
 
 def should_include(path):
@@ -112,9 +102,9 @@ def compressed_tar(writer):
     return output.getvalue()
 
 
-def build_control_tar(version):
+def build_control_tar():
     def write(archive):
-        add_bytes(archive, "control", package_control(version), 0o644)
+        add_bytes(archive, "control", package_control(), 0o644)
         for filename in ("preinst", "postinst", "prerm", "postrm"):
             source = DEBIAN_SOURCE / filename
             if source.is_file():
@@ -192,8 +182,8 @@ def main():
     if not DEBIAN_SOURCE.is_dir():
         raise RuntimeError("DEBIAN directory was not found beside build_deb.py")
 
-    version = plugin_version()
-    control_tar = build_control_tar(version)
+    version = package_version()
+    control_tar = build_control_tar()
     data_tar = build_data_tar()
 
     shutil.rmtree(BUILD_DIR, ignore_errors=True)
