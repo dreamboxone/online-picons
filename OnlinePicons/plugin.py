@@ -49,6 +49,7 @@ from enigma import (
 )
 
 from . import PLUGIN_VERSION
+from .assets import asset_path, ensure_assets
 
 
 REPOSITORY = "dreamboxone/online-picons"
@@ -80,6 +81,11 @@ def _menu_text(value):
     if PY2 and isinstance(value, text_type):
         return value.encode("utf-8")
     return value
+
+
+def _set_text(component, value):
+    """Set live label text safely on Python 2 DreamOS images."""
+    component.setText(_menu_text(value))
 
 
 def _set_menu_style(menu, font_size, item_height):
@@ -421,7 +427,7 @@ class OnlinePiconsMain(Screen):
             self._menu_entry(tr("Update"), "update.png"),
             self._menu_entry(tr("About"), "about.png"),
         ])
-        self["hint"].setText(tr("OK: Select     EXIT: Close"))
+        _set_text(self["hint"], tr("OK: Select     EXIT: Close"))
 
     def _menu_entry(self, text, icon):
         return [
@@ -518,8 +524,8 @@ class LanguageScreen(Screen):
         config.plugins.onlinepicons.language.save()
         configfile.save()
         self.setTitle(tr("Language"))
-        self["heading"].setText(tr("Choose language"))
-        self["hint"].setText(tr("OK: Select     EXIT: Back"))
+        _set_text(self["heading"], tr("Choose language"))
+        _set_text(self["hint"], tr("OK: Select     EXIT: Back"))
         self.refresh()
 
 
@@ -599,7 +605,7 @@ class DestinationScreen(Screen):
         current = self["paths"].getSelectedIndex()
         self["paths"].setList(rows)
         self["paths"].moveToIndex(current)
-        self["custom"].setText("  %s" % self.paths[2])
+        _set_text(self["custom"], "  %s" % self.paths[2])
 
     def select_path(self):
         self.selected = self["paths"].getSelectedIndex()
@@ -652,7 +658,6 @@ class DownloadScreen(Screen):
         <widget name="online" position="35,15" size="105,45"
                 font="Regular;27" valign="center" />
         <widget name="onlineDot" position="145,21" size="32,32"
-                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/dot-checking.png"
                 alphatest="blend" />
         <widget name="connection" position="181,15" size="280,45"
                 font="Regular;23" halign="left" valign="center" />
@@ -676,6 +681,10 @@ class DownloadScreen(Screen):
     """
 
     def __init__(self, session):
+        try:
+            ensure_assets()
+        except Exception:
+            pass
         Screen.__init__(self, session)
         self.setTitle(tr("Download Picons"))
         self.selected = {}
@@ -715,9 +724,18 @@ class DownloadScreen(Screen):
             -1,
         )
         self.onClose.append(self._cleanup)
-        self.onShown.append(self._resize_connection_label)
+        self.onShown.append(self._screen_shown)
         self.refresh_list()
         self._run_background("catalog", self._check_download_servers)
+
+    def _screen_shown(self):
+        self._resize_connection_label()
+        colors = {
+            "primary": "green",
+            "fallback": "yellow",
+            "offline": "red",
+        }
+        self._set_connection_dot(colors.get(self.connectivity, "checking"))
 
     def _cleanup(self):
         self.screen_closed = True
@@ -780,22 +798,22 @@ class DownloadScreen(Screen):
         if state == "primary":
             self._set_connection_text(tr("Online"))
             self._set_connection_dot("green")
-            self["status"].setText(
+            _set_text(self["status"], 
                 tr("Connected to the main server")
             )
         elif state == "fallback":
             self._set_connection_text(tr("Backup server"))
             self._set_connection_dot("yellow")
-            self["status"].setText(
+            _set_text(self["status"], 
                 tr("Main server is unavailable; backup server is ready")
             )
         else:
             self._set_connection_text(tr("Offline"))
             self._set_connection_dot("red")
-            self["status"].setText(tr("Neither download server is available"))
+            _set_text(self["status"], tr("Neither download server is available"))
 
     def _set_connection_text(self, text):
-        self["connection"].setText(text)
+        _set_text(self["connection"], text)
         self._resize_connection_label()
 
     def _resize_connection_label(self):
@@ -809,7 +827,7 @@ class DownloadScreen(Screen):
             pass
 
     def _set_connection_dot(self, color):
-        path = os.path.join(PLUGIN_PATH, "dot-%s.png" % color)
+        path = asset_path("dot-%s.png" % color)
         if os.path.exists(path) and self["onlineDot"].instance is not None:
             self["onlineDot"].instance.setPixmapFromFile(path)
 
@@ -838,7 +856,7 @@ class DownloadScreen(Screen):
                     size=(32, 32),
                     png=LoadPixmap(
                         cached=True,
-                        path=os.path.join(PLUGIN_PATH, "check.png"),
+                        path=asset_path("check.png"),
                     ),
                 ))
             else:
@@ -888,7 +906,7 @@ class DownloadScreen(Screen):
             del self.selected[stem]
         else:
             self.selected[stem] = title
-            self["status"].setText(tr("Selected: %s") % title)
+            _set_text(self["status"], tr("Selected: %s") % title)
         self.refresh_list()
 
     def download_selected(self):
@@ -923,7 +941,7 @@ class DownloadScreen(Screen):
     def _start_download(self, stems):
         self.busy = True
         self["progress"].setValue(0)
-        self["status"].setText(tr("Downloading selected picons..."))
+        _set_text(self["status"], tr("Downloading selected picons..."))
         self._run_background("download", self._download_all, stems)
 
     def _report_download_progress(self, percent, current, total):
@@ -936,7 +954,7 @@ class DownloadScreen(Screen):
             return
         percent = max(0, min(100, int(percent)))
         self["progress"].setValue(percent)
-        self["status"].setText(
+        _set_text(self["status"], 
             tr("Downloading: %d%% (%d/%d)") % (percent, current, total)
         )
 
@@ -1061,7 +1079,7 @@ class DownloadScreen(Screen):
         if success:
             count, destination, completed_stems = result
             self["progress"].setValue(100)
-            self["status"].setText(
+            _set_text(self["status"], 
                 tr("Download completed: %d PNG files") % count
             )
             self.session.open(
@@ -1076,7 +1094,7 @@ class DownloadScreen(Screen):
             self.refresh_list()
         else:
             self["progress"].setValue(0)
-            self["status"].setText(tr("Download failed"))
+            _set_text(self["status"], tr("Download failed"))
             self.session.open(
                 MessageBox,
                 tr("The picons could not be downloaded or verified. Please try again."),
@@ -1181,9 +1199,9 @@ class UpdateScreen(Screen):
         except Exception:
             pass
         self["progress"].setValue(0)
-        self["percent"].setText("--")
+        _set_text(self["percent"], "--")
         message = tr("The update check timed out. Please try again.")
-        self["status"].setText(message)
+        _set_text(self["status"], message)
         self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=8)
 
     def _run_background(self, kind, function, *args):
@@ -1365,12 +1383,12 @@ class UpdateScreen(Screen):
 
         if not success:
             self["progress"].setValue(0)
-            self["percent"].setText("--")
+            _set_text(self["percent"], "--")
             message = "%s\n%s" % (
                 tr("The update could not be completed."),
                 result,
             )
-            self["status"].setText(message)
+            _set_text(self["status"], message)
             self.session.open(
                 MessageBox,
                 message,
@@ -1381,15 +1399,15 @@ class UpdateScreen(Screen):
 
         if kind == "check":
             latest = result[0]
-            self["latest"].setText(tr("Latest version: %s") % latest)
+            _set_text(self["latest"], tr("Latest version: %s") % latest)
             if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
                 self["progress"].setValue(100)
-                self["percent"].setText("100%")
-                self["status"].setText(tr("No new version is available."))
+                _set_text(self["percent"], "100%")
+                _set_text(self["status"], tr("No new version is available."))
                 return
             if result[3] is None:
                 message = tr("The update package was not found in the latest release.")
-                self["status"].setText(message)
+                _set_text(self["status"], message)
                 self.session.open(
                     MessageBox,
                     message,
@@ -1397,14 +1415,14 @@ class UpdateScreen(Screen):
                     timeout=8,
                 )
                 return
-            self["status"].setText(tr("Downloading update: %d%%") % 0)
+            _set_text(self["status"], tr("Downloading update: %d%%") % 0)
             self._run_background("install", self._download_and_install, result)
             return
 
         self["progress"].setValue(100)
-        self["percent"].setText("100%")
+        _set_text(self["percent"], "100%")
         message = tr("Update installed successfully. Please restart Enigma2.")
-        self["status"].setText(message)
+        _set_text(self["status"], message)
         self.session.open(MessageBox, message, MessageBox.TYPE_INFO, timeout=10)
 
     def _download_and_install(self, update_info):
@@ -1455,15 +1473,15 @@ class UpdateScreen(Screen):
         if self.closed:
             return
         self["progress"].setValue(percent)
-        self["percent"].setText("%d%%" % percent)
-        self["status"].setText(tr("Downloading update: %d%%") % percent)
+        _set_text(self["percent"], "%d%%" % percent)
+        _set_text(self["status"], tr("Downloading update: %d%%") % percent)
 
     def _show_installing(self):
         if self.closed:
             return
         self["progress"].setValue(100)
-        self["percent"].setText("100%")
-        self["status"].setText(tr("Installing update..."))
+        _set_text(self["percent"], "100%")
+        _set_text(self["status"], tr("Installing update..."))
 
 
 class AboutScreen(Screen):
