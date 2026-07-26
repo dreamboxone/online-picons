@@ -54,6 +54,8 @@ from . import PLUGIN_VERSION
 REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
 LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % REPOSITORY
+LATEST_RELEASE_PAGE = "https://github.com/%s/releases/latest" % REPOSITORY
+LATEST_VERSION_FILE = "%s/OnlinePicons/__init__.py" % RAW_BASE
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
 PRIMARY_PICONS_BASE = "https://thee.ir/picons"
 GITHUB_PICONS_BASE = "%s/picons" % RAW_BASE
@@ -1156,7 +1158,7 @@ class UpdateScreen(Screen):
             return
         self.started = True
         self.check_pending = True
-        self.check_timeout_timer.start(7000, True)
+        self.check_timeout_timer.start(15000, True)
         self._run_background("check", self._check_latest)
 
     def _check_timed_out(self):
@@ -1165,7 +1167,9 @@ class UpdateScreen(Screen):
         self.check_pending = False
         self["progress"].setValue(0)
         self["percent"].setText("--")
-        self["status"].setText(tr("The update check timed out. Please try again."))
+        message = tr("The update check timed out. Please try again.")
+        self["status"].setText(message)
+        self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=8)
 
     def _run_background(self, kind, function, *args):
         self.background_result = None
@@ -1209,19 +1213,73 @@ class UpdateScreen(Screen):
         self._background_finished(kind, success, result)
 
     def _check_latest(self):
-        raw_release = _read_text(
-            LATEST_RELEASE_API,
-            timeout=4,
-            max_bytes=512 * 1024,
-        )
-        release_data = json.loads(raw_release)
-        if not isinstance(release_data, dict):
-            raise RuntimeError("Invalid GitHub release response")
+        # Prefer the normal GitHub releases page. It redirects to the latest tag
+        # and is often reachable even when api.github.com is blocked or slow.
+        latest = None
+        tag = None
+        release_data = None
+        errors = []
 
-        tag = release_data.get("tag_name")
-        if not tag:
-            raise RuntimeError("GitHub release has no version tag")
-        latest = tag.lstrip("vV")
+        try:
+            response = _request(LATEST_RELEASE_PAGE, timeout=4)
+            try:
+                final_url = response.geturl()
+            finally:
+                response.close()
+            match = re.search(r"/releases/tag/([^/?#]+)", final_url or "")
+            if not match:
+                raise RuntimeError("GitHub latest-release redirect has no tag")
+            tag = match.group(1)
+            latest = tag.lstrip("vV")
+        except Exception as error:
+            errors.append("release page: %s" % error)
+
+        # Fall back to the GitHub API so assets and their sizes can still be
+        # read when the API is available.
+        if not latest:
+            try:
+                raw_release = _read_text(
+                    LATEST_RELEASE_API,
+                    timeout=4,
+                    max_bytes=512 * 1024,
+                )
+                release_data = json.loads(raw_release)
+                if not isinstance(release_data, dict):
+                    raise RuntimeError("Invalid GitHub release response")
+                tag = release_data.get("tag_name")
+                if not tag:
+                    raise RuntimeError("GitHub release has no version tag")
+                latest = tag.lstrip("vV")
+            except Exception as error:
+                release_data = None
+                errors.append("release API: %s" % error)
+
+        # Last fallback: read the version from the small source file on main.
+        # The download URL is then built from the conventional v<version> tag.
+        if not latest:
+            try:
+                version_source = _read_text(
+                    LATEST_VERSION_FILE,
+                    timeout=4,
+                    max_bytes=16 * 1024,
+                )
+                match = re.search(
+                    r'^PLUGIN_VERSION\s*=\s*["\x27]([^"\x27]+)["\x27]',
+                    version_source,
+                    re.M,
+                )
+                if not match:
+                    raise RuntimeError("PLUGIN_VERSION was not found")
+                latest = match.group(1)
+                tag = "v" + latest
+            except Exception as error:
+                errors.append("version file: %s" % error)
+
+        if not latest or not tag:
+            raise RuntimeError(
+                "Unable to determine the latest version (%s)"
+                % "; ".join(errors)
+            )
 
         if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
             return latest, None, None, None
@@ -1239,28 +1297,41 @@ class UpdateScreen(Screen):
             extension,
         )
         selected_asset = None
-        assets = release_data.get("assets") or []
-        if not isinstance(assets, list):
-            assets = []
 
-        for asset in assets:
-            if not isinstance(asset, dict):
-                continue
-            if asset.get("name") != expected:
-                continue
-            download_url = asset.get("browser_download_url")
-            if not download_url:
-                continue
-            try:
-                asset_size = int(asset.get("size") or 0)
-            except (TypeError, ValueError):
-                asset_size = 0
+        if isinstance(release_data, dict):
+            assets = release_data.get("assets") or []
+            if not isinstance(assets, list):
+                assets = []
+            for asset in assets:
+                if not isinstance(asset, dict):
+                    continue
+                if asset.get("name") != expected:
+                    continue
+                download_url = asset.get("browser_download_url")
+                if not download_url:
+                    continue
+                try:
+                    asset_size = int(asset.get("size") or 0)
+                except (TypeError, ValueError):
+                    asset_size = 0
+                selected_asset = {
+                    "name": expected,
+                    "browser_download_url": download_url,
+                    "size": asset_size,
+                }
+                break
+
+        # The release-page and version-file methods do not return asset JSON.
+        # Build the deterministic URL used by this repository's releases.
+        if selected_asset is None:
             selected_asset = {
                 "name": expected,
-                "browser_download_url": download_url,
-                "size": asset_size,
+                "browser_download_url": (
+                    "https://github.com/%s/releases/download/%s/%s"
+                    % (REPOSITORY, tag, expected)
+                ),
+                "size": 0,
             }
-            break
 
         return latest, installer, extension, selected_asset
 
@@ -1280,7 +1351,17 @@ class UpdateScreen(Screen):
         if not success:
             self["progress"].setValue(0)
             self["percent"].setText("--")
-            self["status"].setText(tr("The update could not be completed."))
+            message = "%s\n%s" % (
+                tr("The update could not be completed."),
+                result,
+            )
+            self["status"].setText(message)
+            self.session.open(
+                MessageBox,
+                message,
+                MessageBox.TYPE_ERROR,
+                timeout=10,
+            )
             return
 
         if kind == "check":
@@ -1292,8 +1373,14 @@ class UpdateScreen(Screen):
                 self["status"].setText(tr("No new version is available."))
                 return
             if result[3] is None:
-                message = tr("The update package was not found in the latest GitHub release.")
+                message = tr("The update package was not found in the latest release.")
                 self["status"].setText(message)
+                self.session.open(
+                    MessageBox,
+                    message,
+                    MessageBox.TYPE_ERROR,
+                    timeout=8,
+                )
                 return
             self["status"].setText(tr("Downloading update: %d%%") % 0)
             self._run_background("install", self._download_and_install, result)
@@ -1422,3 +1509,4 @@ def Plugins(**kwargs):
             fnc=main,
         )
     ]
+
