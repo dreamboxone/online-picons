@@ -1125,29 +1125,40 @@ class UpdateScreen(Screen):
         self.pending_progress = None
         self.pending_installing = False
 
-        # Use Enigma2 eTimer for all callbacks. On some DreamOS images the
-        # Twisted reactor is imported but its callLater/callFromThread callbacks
-        # are not dispatched, leaving this screen permanently at 0%.
-        self.start_timer = eTimer()
+        # Keep signal connection objects alive. Newer DreamOS images use
+        # eTimer.timeout.connect(); discarding the returned object disconnects
+        # the callback and leaves this screen at 0% forever.
+        self._timer_connections = []
         self.result_timer = eTimer()
         self.check_timeout_timer = eTimer()
-        self._connect_timer(self.start_timer, self.start_update)
         self._connect_timer(self.result_timer, self._poll_background)
         self._connect_timer(self.check_timeout_timer, self._check_timed_out)
 
+        # Start only after the screen is visible; this is more reliable than a
+        # separate one-shot start timer across DreamOS/Enigma2 variants.
+        self.onShown.append(self._start_on_shown)
         self.onClose.append(self._cleanup)
-        self.start_timer.start(150, True)
+
+    def _start_on_shown(self):
+        try:
+            self.onShown.remove(self._start_on_shown)
+        except Exception:
+            pass
+        self.start_update()
 
     def _connect_timer(self, timer, callback):
         try:
-            timer.callback.append(callback)
+            connection = timer.timeout.connect(callback)
+            self._timer_connections.append(connection)
+            return
         except Exception:
-            timer.timeout.connect(callback)
+            pass
+        timer.callback.append(callback)
 
     def _cleanup(self):
         self.closed = True
         self.check_pending = False
-        for timer in (self.start_timer, self.result_timer, self.check_timeout_timer):
+        for timer in (self.result_timer, self.check_timeout_timer):
             try:
                 timer.stop()
             except Exception:
@@ -1165,6 +1176,10 @@ class UpdateScreen(Screen):
         if self.closed or not self.check_pending:
             return
         self.check_pending = False
+        try:
+            self.result_timer.stop()
+        except Exception:
+            pass
         self["progress"].setValue(0)
         self["percent"].setText("--")
         message = tr("The update check timed out. Please try again.")
@@ -1173,7 +1188,7 @@ class UpdateScreen(Screen):
 
     def _run_background(self, kind, function, *args):
         self.background_result = None
-        self.result_timer.start(100, True)
+        self.result_timer.start(100, False)
 
         def worker():
             try:
@@ -1205,9 +1220,9 @@ class UpdateScreen(Screen):
 
         completed = self.background_result
         if completed is None:
-            self.result_timer.start(100, True)
             return
 
+        self.result_timer.stop()
         self.background_result = None
         kind, success, result = completed
         self._background_finished(kind, success, result)
@@ -1509,4 +1524,3 @@ def Plugins(**kwargs):
             fnc=main,
         )
     ]
-
