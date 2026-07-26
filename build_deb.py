@@ -126,10 +126,14 @@ def build_control_tar(version):
 
 
 def build_data_tar():
+    from OnlinePicons.assets import validate_assets
+
+    validate_assets()
     required = (
         PLUGIN_SOURCE / "__init__.py",
         PLUGIN_SOURCE / "plugin.py",
         PLUGIN_SOURCE / "plugin.png",
+        PLUGIN_SOURCE / "assets.py",
     )
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
