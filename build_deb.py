@@ -6,6 +6,7 @@ present in OnlinePicons/ (including plugin.png and menu icons) are copied
 unchanged into the package.
 """
 
+import argparse
 import gzip
 import io
 import os
@@ -38,24 +39,34 @@ IGNORED_SUFFIXES = {
 }
 
 
-def package_version():
-    """Read the authoritative Debian package version from DEBIAN/control."""
-    control_file = DEBIAN_SOURCE / "control"
-    content = control_file.read_text(encoding="utf-8")
+def plugin_version():
+    """Read the authoritative release version from OnlinePicons/__init__.py."""
+    init_file = PLUGIN_SOURCE / "__init__.py"
+    content = init_file.read_text(encoding="utf-8")
     match = re.search(
-        r"^\s*Version:\s*(\S+)\s*$",
+        r'^\s*PLUGIN_VERSION\s*=\s*["\']([^"\']+)["\']',
         content,
         re.MULTILINE,
     )
     if not match:
-        raise RuntimeError("Version field was not found in DEBIAN/control")
+        raise RuntimeError("PLUGIN_VERSION was not found in OnlinePicons/__init__.py")
     return match.group(1).strip()
 
 
-def package_control():
-    """Return the original Debian control metadata unchanged."""
+def package_control(version):
+    """Synchronize the package metadata with the plugin release version."""
     control_file = DEBIAN_SOURCE / "control"
-    return control_file.read_bytes().replace(b"\r\n", b"\n")
+    content = control_file.read_text(encoding="utf-8").replace("\r\n", "\n")
+    updated, count = re.subn(
+        r"^Version:\s*.*$",
+        "Version: %s" % version,
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        raise RuntimeError("Version field was not found in DEBIAN/control")
+    return updated.encode("utf-8")
 
 
 def should_include(path):
@@ -102,9 +113,9 @@ def compressed_tar(writer):
     return output.getvalue()
 
 
-def build_control_tar():
+def build_control_tar(version):
     def write(archive):
-        add_bytes(archive, "control", package_control(), 0o644)
+        add_bytes(archive, "control", package_control(version), 0o644)
         for filename in ("preinst", "postinst", "prerm", "postrm"):
             source = DEBIAN_SOURCE / filename
             if source.is_file():
@@ -176,27 +187,52 @@ def ar_member(name, data, mode=0o100644):
     return header + data + (b"\n" if len(data) % 2 else b"")
 
 
+def package_payload(control_tar, data_tar):
+    output = io.BytesIO()
+    output.write(b"!<arch>\n")
+    output.write(ar_member("debian-binary", b"2.0\n"))
+    output.write(ar_member("control.tar.gz", control_tar))
+    output.write(ar_member("data.tar.gz", data_tar))
+    return output.getvalue()
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build Online Picons packages")
+    parser.add_argument(
+        "--format",
+        choices=("deb", "ipk", "all"),
+        default="deb",
+        help="Package format to build (default: deb)",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     if not PLUGIN_SOURCE.is_dir():
         raise RuntimeError("OnlinePicons directory was not found beside build_deb.py")
     if not DEBIAN_SOURCE.is_dir():
         raise RuntimeError("DEBIAN directory was not found beside build_deb.py")
 
-    version = package_version()
-    control_tar = build_control_tar()
+    version = plugin_version()
+    control_tar = build_control_tar(version)
     data_tar = build_data_tar()
+    payload = package_payload(control_tar, data_tar)
 
     shutil.rmtree(BUILD_DIR, ignore_errors=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_DIR / ("%s_%s_all.deb" % (PACKAGE, version))
+    for old_package in OUTPUT_DIR.glob("%s_*_all.*" % PACKAGE):
+        if old_package.suffix in (".deb", ".ipk"):
+            old_package.unlink()
 
-    with output_path.open("wb") as package:
-        package.write(b"!<arch>\n")
-        package.write(ar_member("debian-binary", b"2.0\n"))
-        package.write(ar_member("control.tar.gz", control_tar))
-        package.write(ar_member("data.tar.gz", data_tar))
+    formats = ("deb", "ipk") if args.format == "all" else (args.format,)
+    for extension in formats:
+        output_path = OUTPUT_DIR / (
+            "%s_%s_all.%s" % (PACKAGE, version, extension)
+        )
+        output_path.write_bytes(payload)
+        print("Built: %s" % output_path)
 
-    print("Built: %s" % output_path)
     print("Version: %s" % version)
     print("Source icon preserved: OnlinePicons/plugin.png")
 
