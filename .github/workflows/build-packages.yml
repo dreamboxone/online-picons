@@ -23,6 +23,9 @@ jobs:
       - name: Validate Python syntax
         run: python3 -m py_compile OnlinePicons/__init__.py OnlinePicons/plugin.py build_deb.py
 
+      - name: Validate embedded runtime assets
+        run: python3 OnlinePicons/assets.py
+
       - name: Build matching DEB and IPK packages
         run: python3 build_deb.py --format all
 
