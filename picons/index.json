@@ -127,15 +127,15 @@
                   {
                       "name":  "52.5e.tar.gz",
                       "satellite_position":  "52.5e",
-                      "size":  9614734,
-                      "sha256":  "c412b53a8086293059fd7f06fca392f2648df9240764baba6ee23ab2cd99d212",
+                      "size":  8789228,
+                      "sha256":  "121b4270553e0a569bdfa27920cd03c4175f60ceb231e6ba002e303e032fe800",
                       "enabled":  true
                   },
                   {
                       "name":  "52e.tar.gz",
                       "satellite_position":  "52e",
-                      "size":  19669982,
-                      "sha256":  "eb9d049940b46b383d0532f01efb9c0f11bd607e38569d4eedb4e7cc68f485b7",
+                      "size":  20029233,
+                      "sha256":  "665611ca8b21102af3f4d6b6cd05523218c740c9c2c2ca750d24e4bab3b570bc",
                       "enabled":  true
                   },
                   {
