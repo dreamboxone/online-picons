@@ -1,3 +1,4 @@
+"updated_at": "2026-07-27T00:00:00Z",
 {
     "schema_version":  1,
     "updated_at":  "2026-07-25T13:37:25Z",
@@ -26,11 +27,12 @@
                       "enabled":  true
                   },
                   {
-                      "name":  "13e.tar.gz",
-                      "satellite_position":  "13e",
-                      "size":  49423542,
-                      "sha256":  "f91742a37fd01155a323301cbf9d32f2a27fd0b4db8e134f3e99329654e8af71",
-                      "enabled":  true
+                  "name": "13e.tar.gz",
+  		  "satellite_position": "13e",
+  		  "size": 49501953,
+                  "sha256": "b1d221aeff1fafdf2889b9c0ae609af207f030f3a5fbb178071f3dcdd2d3eb3b",
+                  "updated_at": "2026-07-27T00:00:00Z",
+                  "enabled": true
                   },
                   {
                       "name":  "15w.tar.gz",
