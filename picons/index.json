@@ -1,7 +1,6 @@
-"updated_at": "2026-07-27T00:00:00Z",
 {
     "schema_version":  1,
-    "updated_at":  "2026-07-25T13:37:25Z",
+    "updated_at": "2026-07-27T00:00:00Z",
     "archive_format":  "tar.gz",
     "sources":  {
                     "primary":  "https://thee.ir/picons/",
