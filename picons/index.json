@@ -28,9 +28,8 @@
                   {
                   "name": "13e.tar.gz",
   		  "satellite_position": "13e",
-  		  "size": 49501953,
-                  "sha256": "b1d221aeff1fafdf2889b9c0ae609af207f030f3a5fbb178071f3dcdd2d3eb3b",
-                  "updated_at": "2026-07-27T00:00:00Z",
+  		  "size": 49556502,
+                  "sha256": "1193f7d2b39c8a8e793647cc30078f047055748d04ec8a25946d2655aaaae926",
                   "enabled": true
                   },
                   {
@@ -71,8 +70,8 @@
                   {
                       "name":  "26e.tar.gz",
                       "satellite_position":  "26e",
-                      "size":  38009391,
-                      "sha256":  "f5c2950441f8b4d202fe30a7b73cdb7d06e8c44e158614c9babed025e08d807d",
+                      "size":  38024394,
+                      "sha256":  "8f6f2e33ccbc5d04a83dfcd812af70dbf1f3837d917358d9cd82438f7c6be530",
                       "enabled":  true
                   },
                   {
