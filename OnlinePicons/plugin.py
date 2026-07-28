@@ -690,9 +690,9 @@ class DownloadScreen(Screen):
                 font="Regular;21" halign="center" />
         <widget name="keysLeft" position="120,648" size="430,30"
                  font="Regular;22" halign="right" />
-        <widget name="greenKey" position="550,648" size="78,30"
+        <widget name="greenKey" position="550,648" size="60,30"
                  font="Regular;22" halign="center" foregroundColor="#00ff00" />
-        <widget name="downloadKey" position="628,648" size="160,30"
+        <widget name="downloadKey" position="610,648" size="160,30"
                  font="Regular;22" halign="left" />
         <widget name="exitKey" position="815,648" size="180,30"
                 font="Regular;22" halign="left" />
