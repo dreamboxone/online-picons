@@ -5,7 +5,7 @@ Priority: optional
 Architecture: all
 Maintainer: routekernel
 Depends: enigma2
-Description: Online Picons downloader for DreamOS
+Description: Smart Picon Downloader for Enigma2
  Downloads 220x132 satellite picon archives from
  github.com/dreamboxone/online-picons and installs PNG files
  in a user-selected destination.
