@@ -65,6 +65,7 @@ PICONS_SOURCES = (
     ("github", GITHUB_PICONS_BASE),
 )
 INDEX_FILENAME = "index.json"
+LATEST_UPDATES_FILENAME = "RSS/latest_updates.txt"
 HEALTH_FILENAME = "health.txt"
 HEALTH_EXPECTED = "ONLINE-PICONS-OK"
 PLUGIN_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -134,6 +135,10 @@ TRANSLATIONS = {
         "Download Picons": "دانلود پیکون‌ها",
         "Language": "زبان",
         "About": "درباره",
+        "Latest Updates": "اخبار به‌روزرسانی‌ها",
+        "Loading latest updates...": "در حال دریافت اخبار به‌روزرسانی‌ها...",
+        "Latest updates loaded.": "آخرین اخبار به‌روزرسانی دریافت شد.",
+        "Updates cannot be checked right now.": "در حال حاضر امکان بررسی وجود ندارد.",
         "GREEN": "سبز",
         "OK: Select     EXIT: Close": "OK: انتخاب     EXIT: بستن",
         "Choose language": "انتخاب زبان",
@@ -189,6 +194,10 @@ TRANSLATIONS = {
         "Download Picons": "تنزيل البيكونات",
         "Language": "اللغة",
         "About": "حول",
+        "Latest Updates": "آخر أخبار التحديثات",
+        "Loading latest updates...": "جارٍ تحميل آخر أخبار التحديثات...",
+        "Latest updates loaded.": "تم تحميل آخر أخبار التحديثات.",
+        "Updates cannot be checked right now.": "لا يمكن التحقق من التحديثات حالياً.",
         "GREEN": "أخضر",
         "OK: Select     EXIT: Close": "OK: اختيار     EXIT: إغلاق",
         "Choose language": "اختر اللغة",
@@ -390,18 +399,22 @@ def _version_tuple(value):
 
 class OnlinePiconsMain(Screen):
     skin = """
-    <screen name="OnlinePiconsMain" position="center,center" size="900,560"
+    <screen name="OnlinePiconsMain" position="center,center" size="900,650"
             title="Online Picons">
         <widget name="title" position="45,30" size="810,55"
                 font="Regular;38" halign="center" />
-        <widget name="menu" position="65,115" size="715,310"
+        <widget name="menu" position="65,115" size="715,390"
                 scrollbarMode="showNever" />
-        <widget name="hint" position="45,480" size="810,38"
+        <widget name="hint" position="45,565" size="810,38"
                 font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
     </screen>
     """
 
     def __init__(self, session):
+        try:
+            ensure_assets()
+        except Exception:
+            pass
         Screen.__init__(self, session)
         self["title"] = Label("Online Picons")
         self["menu"] = MenuList(
@@ -425,11 +438,15 @@ class OnlinePiconsMain(Screen):
             self._menu_entry(tr("Download Picons"), "download.png"),
             self._menu_entry(tr("Language"), "language.png"),
             self._menu_entry(tr("Update"), "update.png"),
+            self._menu_entry(tr("Latest Updates"), "rss.png"),
             self._menu_entry(tr("About"), "about.png"),
         ])
         _set_text(self["hint"], tr("OK: Select     EXIT: Close"))
 
     def _menu_entry(self, text, icon):
+        icon_path = asset_path(icon) if icon == "rss.png" else os.path.join(
+            PLUGIN_PATH, icon
+        )
         return [
             _menu_text(text),
             MultiContentEntryPixmapAlphaTest(
@@ -437,7 +454,7 @@ class OnlinePiconsMain(Screen):
                 size=(48, 48),
                 png=LoadPixmap(
                     cached=True,
-                    path=os.path.join(PLUGIN_PATH, icon),
+                    path=icon_path,
                 ),
             ),
             MultiContentEntryText(
@@ -459,6 +476,8 @@ class OnlinePiconsMain(Screen):
             self.session.openWithCallback(self.refresh_language, LanguageScreen)
         elif index == 3:
             self.session.open(UpdateScreen)
+        elif index == 4:
+            self.session.open(LatestUpdatesScreen)
         else:
             self.session.open(AboutScreen)
 
@@ -1102,6 +1121,133 @@ class DownloadScreen(Screen):
                 timeout=8,
             )
 
+
+class LatestUpdatesScreen(Screen):
+    skin = """
+    <screen name="LatestUpdatesScreen" position="center,center" size="900,620"
+            title="Latest Updates">
+        <widget name="heading" position="40,25" size="820,50"
+                font="Regular;34" halign="center" />
+        <widget name="updates" position="70,100" size="760,390"
+                scrollbarMode="showOnDemand" />
+        <widget name="status" position="55,510" size="790,42"
+                font="Regular;23" halign="center" />
+        <widget name="hint" position="55,565" size="790,32"
+                font="Regular;21" halign="center" foregroundColor="#aaaaaa" />
+    </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.setTitle(tr("Latest Updates"))
+        self["heading"] = Label(tr("Latest Updates"))
+        self["updates"] = MenuList(
+            [], enableWrapAround=True, content=eListboxPythonMultiContent
+        )
+        self["updates"].l.setFont(0, gFont("Regular", 30))
+        self["updates"].l.setItemHeight(40)
+        self["status"] = Label(tr("Loading latest updates..."))
+        self["hint"] = Label(tr("EXIT: Back"))
+        self["actions"] = ActionMap(
+            ["OkCancelActions"], {"ok": self.close, "cancel": self.close}, -1
+        )
+
+        self.closed = False
+        self.background_result = None
+        self._timer_connections = []
+        self.result_timer = eTimer()
+        self._connect_timer(self.result_timer, self._poll_background)
+        self.onShown.append(self._start_on_shown)
+        self.onClose.append(self._cleanup)
+
+    def _start_on_shown(self):
+        try:
+            self.onShown.remove(self._start_on_shown)
+        except Exception:
+            pass
+        self._run_background(self._load_latest_updates)
+
+    def _connect_timer(self, timer, callback):
+        try:
+            connection = timer.timeout.connect(callback)
+            self._timer_connections.append(connection)
+            return
+        except Exception:
+            pass
+        timer.callback.append(callback)
+
+    def _cleanup(self):
+        self.closed = True
+        try:
+            self.result_timer.stop()
+        except Exception:
+            pass
+
+    def _run_background(self, function):
+        self.background_result = None
+        self.result_timer.start(100, False)
+
+        def worker():
+            try:
+                self.background_result = (True, function())
+            except Exception as error:
+                self.background_result = (False, str(error))
+
+        thread = threading.Thread(target=worker)
+        thread.daemon = True
+        thread.start()
+
+    def _poll_background(self):
+        if self.closed:
+            return
+        result = self.background_result
+        if result is None:
+            return
+        self.result_timer.stop()
+        self.background_result = None
+        success, payload = result
+        if not success:
+            message = tr("Updates cannot be checked right now.")
+            _set_text(self["status"], message)
+            self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=5)
+            return
+
+        source_name, lines = payload
+        rows = []
+        for line in lines:
+            rows.append([
+                _menu_text(line),
+                MultiContentEntryText(
+                    pos=(12, 0), size=(730, 40), font=0,
+                    flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                    text=_menu_text(line),
+                ),
+            ])
+        self["updates"].setList(rows)
+        _set_text(self["status"], tr("Latest updates loaded."))
+
+    def _load_latest_updates(self):
+        errors = []
+        for source_name, base_url in PICONS_SOURCES:
+            try:
+                raw = _read_text(
+                    _join_url(base_url, LATEST_UPDATES_FILENAME),
+                    timeout=8,
+                    max_bytes=32 * 1024,
+                )
+                lines = []
+                for raw_line in raw.splitlines():
+                    line = raw_line.strip()
+                    if line:
+                        lines.append(line)
+                if not lines:
+                    raise RuntimeError("Update news file is empty")
+                return source_name, lines[:10]
+            except Exception as error:
+                errors.append("%s: %s" % (source_name, error))
+        raise RuntimeError("; ".join(errors))
+
+
 class UpdateScreen(Screen):
     skin = """
     <screen name="UpdateScreen" position="center,center" size="900,500"
@@ -1542,3 +1688,4 @@ def Plugins(**kwargs):
             fnc=main,
         )
     ]
+
