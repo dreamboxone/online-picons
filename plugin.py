@@ -49,11 +49,14 @@ from enigma import (
 )
 
 from . import PLUGIN_VERSION
+from .assets import asset_path, ensure_assets
 
 
 REPOSITORY = "dreamboxone/online-picons"
 RAW_BASE = "https://raw.githubusercontent.com/%s/main" % REPOSITORY
 LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % REPOSITORY
+LATEST_RELEASE_PAGE = "https://github.com/%s/releases/latest" % REPOSITORY
+LATEST_VERSION_FILE = "%s/OnlinePicons/__init__.py" % RAW_BASE
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
 PRIMARY_PICONS_BASE = "https://thee.ir/picons"
 GITHUB_PICONS_BASE = "%s/picons" % RAW_BASE
@@ -62,6 +65,7 @@ PICONS_SOURCES = (
     ("github", GITHUB_PICONS_BASE),
 )
 INDEX_FILENAME = "index.json"
+LATEST_UPDATES_FILENAME = "RSS/latest_updates.txt"
 HEALTH_FILENAME = "health.txt"
 HEALTH_EXPECTED = "ONLINE-PICONS-OK"
 PLUGIN_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -78,6 +82,11 @@ def _menu_text(value):
     if PY2 and isinstance(value, text_type):
         return value.encode("utf-8")
     return value
+
+
+def _set_text(component, value):
+    """Set live label text safely on Python 2 DreamOS images."""
+    component.setText(_menu_text(value))
 
 
 def _set_menu_style(menu, font_size, item_height):
@@ -114,18 +123,22 @@ TRANSLATIONS = {
         "Update": "به‌روزرسانی",
         "Current version: %s": "نسخه نصب‌شده: %s",
         "Latest version: %s": "آخرین نسخه: %s",
-        "Checking for the latest version...": "در حال بررسی آخرین نسخه در گیت‌هاب...",
+        "Checking for the latest version...": "در حال بررسی آخرین نسخه...",
         "Downloading update: %d%%": "در حال دانلود به‌روزرسانی: %d%%",
         "Installing update...": "در حال نصب به‌روزرسانی...",
         "No new version is available.": "نسخه جدیدی برای نصب وجود ندارد.",
-        "The update package was not found in the latest GitHub release.": "فایل به‌روزرسانی در آخرین انتشار گیت‌هاب پیدا نشد.",
+        "The update package was not found in the latest release.": "بسته به‌روزرسانی پیدا نشد.",
         "The update could not be completed.": "به‌روزرسانی انجام نشد.",
-        "The update check timed out. Please try again.": "بررسی نسخه جدید زمان‌بر شد. لطفاً دوباره تلاش کنید.",
+        "The update check timed out. Please try again.": "مهلت بررسی نسخه جدید به پایان رسید. لطفاً دوباره تلاش کنید.",
         "Update installed successfully. Please restart Enigma2.": "به‌روزرسانی با موفقیت نصب شد. لطفاً Enigma2 را راه‌اندازی مجدد کنید.",
         "Settings": "تنظیمات",
         "Download Picons": "دانلود پیکون‌ها",
         "Language": "زبان",
         "About": "درباره",
+        "Latest Updates": "اخبار به‌روزرسانی‌ها",
+        "Loading latest updates...": "در حال دریافت اخبار به‌روزرسانی‌ها...",
+        "Latest updates loaded.": "آخرین اخبار به‌روزرسانی دریافت شد.",
+        "Updates cannot be checked right now.": "در حال حاضر امکان بررسی وجود ندارد.",
         "GREEN": "سبز",
         "OK: Select     EXIT: Close": "OK: انتخاب     EXIT: بستن",
         "Choose language": "انتخاب زبان",
@@ -142,9 +155,9 @@ TRANSLATIONS = {
         "Destination: %s": "مسیر: %s",
         "Checking download servers...": "در حال بررسی سرورهای دانلود...",
         "OK: Select/Unselect     ": "OK: انتخاب/لغو انتخاب     ",
-        ": Download": ": دانلود",
+        ": Download": "Download :",
         "EXIT: Back": "EXIT: بازگشت",
-        "online": "آنلاین",
+        "Online": "آنلاین",
         "Backup server": "سرور پشتیبان",
         "Offline": "آفلاین",
         "Connected to the main server": "اتصال به سرور اصلی برقرار است",
@@ -161,7 +174,7 @@ TRANSLATIONS = {
         "Download finished.\n%d files were copied to:\n%s": "دانلود تمام شد.\n%d فایل در مسیر زیر کپی شد:\n%s",
         "Download failed": "دانلود ناموفق بود",
         "The picons could not be downloaded or verified. Please try again.": "دانلود یا اعتبارسنجی پیکون‌ها انجام نشد. لطفاً دوباره تلاش کنید.",
-        "Download Picons": "دانلود پیکونها",
+        "Download Picons": "دانلود پیکون‌ها",
         "Version: %s": "نسخه: %s",
         "EXIT: Close": "EXIT: بستن",
     },
@@ -169,37 +182,41 @@ TRANSLATIONS = {
         "Update": "تحديث",
         "Current version: %s": "الإصدار المثبت: %s",
         "Latest version: %s": "أحدث إصدار: %s",
-        "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار على GitHub...",
+        "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار...",
         "Downloading update: %d%%": "جارٍ تنزيل التحديث: %d%%",
         "Installing update...": "جارٍ تثبيت التحديث...",
         "No new version is available.": "لا يوجد إصدار جديد للتثبيت.",
-        "The update package was not found in the latest GitHub release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار على GitHub.",
+        "The update package was not found in the latest release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار.",
         "The update could not be completed.": "تعذر إكمال التحديث.",
         "The update check timed out. Please try again.": "انتهت مهلة التحقق من التحديث. يرجى المحاولة مرة أخرى.",
         "Update installed successfully. Please restart Enigma2.": "تم تثبيت التحديث بنجاح. يرجى إعادة تشغيل Enigma2.",
         "Settings": "الإعدادات",
-        "Download Picons": "تنزيل الأيقونات",
+        "Download Picons": "تنزيل البيكونات",
         "Language": "اللغة",
         "About": "حول",
+        "Latest Updates": "آخر أخبار التحديثات",
+        "Loading latest updates...": "جارٍ تحميل آخر أخبار التحديثات...",
+        "Latest updates loaded.": "تم تحميل آخر أخبار التحديثات.",
+        "Updates cannot be checked right now.": "لا يمكن التحقق من التحديثات حالياً.",
         "GREEN": "أخضر",
         "OK: Select     EXIT: Close": "OK: اختيار     EXIT: إغلاق",
         "Choose language": "اختر اللغة",
         "OK: Select     EXIT: Back": "OK: اختيار     EXIT: رجوع",
-        "Choose the destination for downloaded picons": "اختر مسار حفظ الأيقونات التي تم تنزيلها",
+        "Choose the destination for downloaded picons": "اختر مسار حفظ البيكونات التي تم تنزيلها",
         "Custom path": "مسار مخصص",
         "OK: Select     BLUE: Edit custom path     ": "OK: اختيار     BLUE: تعديل المسار     ",
         ": Save": ": حفظ",
-        "Enter picon destination path": "أدخل مسار حفظ الأيقونات",
+        "Enter picon destination path": "أدخل مسار حفظ البيكونات",
         "The path must start with /": "يجب أن يبدأ المسار بـ /",
-        "Picon destination saved:\n%s": "تم حفظ مسار الأيقونات:\n%s",
+        "Picon destination saved:\n%s": "تم حفظ مسار البيكونات:\n%s",
         "Internet": "الإنترنت",
         "Checking...": "جارٍ التحقق...",
         "Destination: %s": "المسار: %s",
         "Checking download servers...": "جارٍ التحقق من خوادم التنزيل...",
         "OK: Select/Unselect     ": "OK: اختيار/إلغاء     ",
-        ": Download": ": تنزيل",
+        ": Download": ": Download",
         "EXIT: Back": "EXIT: رجوع",
-        "online": "online",
+        "Online": "متصل",
         "Backup server": "خادم احتياطي",
         "Offline": "غير متصل",
         "Connected to the main server": "متصل بالخادم الرئيسي",
@@ -210,7 +227,7 @@ TRANSLATIONS = {
         "The download catalog is incomplete. Please reopen this screen.": "قائمة التنزيل غير مكتملة. أغلق هذه الشاشة وافتحها مجدداً.",
         "Select at least one satellite first.": "اختر قمراً صناعياً واحداً على الأقل أولاً.",
         "A tar.gz extraction tool is not available on this receiver.": "أداة استخراج tar.gz غير متوفرة على هذا الجهاز.",
-        "Downloading selected picons...": "جارٍ تنزيل الأيقونات المختارة...",
+        "Downloading selected picons...": "جارٍ تنزيل البيكونات المحددة...",
         "Downloading: %d%% (%d/%d)": "جارٍ التنزيل: %d%% (%d/%d)",
         "Download completed: %d PNG files": "اكتمل التنزيل: %d ملف PNG",
         "Download finished.\n%d files were copied to:\n%s": "اكتمل التنزيل.\nتم نسخ %d ملف إلى:\n%s",
@@ -254,7 +271,7 @@ SATELLITES = [
     ("220x132-52.5°E (Al Yah 1)", "52.5e"),
     ("220x132-53.0°E (Express AM6)", "53e"),
     ("220x132-56.0°E (Express AT2)", "56e"),
-    ("220x132-57.0°E", "57e"),
+    ("220x132-57.0°E (NSS 12)", "57e"),
     ("220x132-62.0°E (Intelsat 39)", "62e"),
     ("220x132-68.5°E (Intelsat 20/36)", "68.5e"),
     ("220x132-70.5°E (Eutelsat 70B)", "70.5e"),
@@ -382,18 +399,22 @@ def _version_tuple(value):
 
 class OnlinePiconsMain(Screen):
     skin = """
-    <screen name="OnlinePiconsMain" position="center,center" size="900,560"
+    <screen name="OnlinePiconsMain" position="center,center" size="900,650"
             title="Online Picons">
         <widget name="title" position="45,30" size="810,55"
                 font="Regular;38" halign="center" />
-        <widget name="menu" position="65,115" size="715,310"
+        <widget name="menu" position="65,115" size="715,390"
                 scrollbarMode="showNever" />
-        <widget name="hint" position="45,480" size="810,38"
+        <widget name="hint" position="45,565" size="810,38"
                 font="Regular;22" halign="center" foregroundColor="#aaaaaa" />
     </screen>
     """
 
     def __init__(self, session):
+        try:
+            ensure_assets()
+        except Exception:
+            pass
         Screen.__init__(self, session)
         self["title"] = Label("Online Picons")
         self["menu"] = MenuList(
@@ -417,11 +438,15 @@ class OnlinePiconsMain(Screen):
             self._menu_entry(tr("Download Picons"), "download.png"),
             self._menu_entry(tr("Language"), "language.png"),
             self._menu_entry(tr("Update"), "update.png"),
+            self._menu_entry(tr("Latest Updates"), "rss.png"),
             self._menu_entry(tr("About"), "about.png"),
         ])
-        self["hint"].setText(tr("OK: Select     EXIT: Close"))
+        _set_text(self["hint"], tr("OK: Select     EXIT: Close"))
 
     def _menu_entry(self, text, icon):
+        icon_path = asset_path(icon) if icon == "rss.png" else os.path.join(
+            PLUGIN_PATH, icon
+        )
         return [
             _menu_text(text),
             MultiContentEntryPixmapAlphaTest(
@@ -429,7 +454,7 @@ class OnlinePiconsMain(Screen):
                 size=(48, 48),
                 png=LoadPixmap(
                     cached=True,
-                    path=os.path.join(PLUGIN_PATH, icon),
+                    path=icon_path,
                 ),
             ),
             MultiContentEntryText(
@@ -451,6 +476,8 @@ class OnlinePiconsMain(Screen):
             self.session.openWithCallback(self.refresh_language, LanguageScreen)
         elif index == 3:
             self.session.open(UpdateScreen)
+        elif index == 4:
+            self.session.open(LatestUpdatesScreen)
         else:
             self.session.open(AboutScreen)
 
@@ -516,8 +543,8 @@ class LanguageScreen(Screen):
         config.plugins.onlinepicons.language.save()
         configfile.save()
         self.setTitle(tr("Language"))
-        self["heading"].setText(tr("Choose language"))
-        self["hint"].setText(tr("OK: Select     EXIT: Back"))
+        _set_text(self["heading"], tr("Choose language"))
+        _set_text(self["hint"], tr("OK: Select     EXIT: Back"))
         self.refresh()
 
 
@@ -534,7 +561,7 @@ class DestinationScreen(Screen):
                 backgroundColor="#202020" transparent="0" />
         <widget name="keysLeft" position="130,485" size="390,42"
                 font="Regular;22" halign="right" />
-        <widget name="greenKey" position="520,485" size="78,42"
+        <widget name="greenKey" position="660,648" size="60,30"
                 font="Regular;22" halign="center" foregroundColor="#00ff00" />
         <widget name="keysRight" position="598,485" size="270,42"
                 font="Regular;22" halign="left" />
@@ -597,7 +624,7 @@ class DestinationScreen(Screen):
         current = self["paths"].getSelectedIndex()
         self["paths"].setList(rows)
         self["paths"].moveToIndex(current)
-        self["custom"].setText("  %s" % self.paths[2])
+        _set_text(self["custom"], "  %s" % self.paths[2])
 
     def select_path(self):
         self.selected = self["paths"].getSelectedIndex()
@@ -650,7 +677,6 @@ class DownloadScreen(Screen):
         <widget name="online" position="35,15" size="105,45"
                 font="Regular;27" valign="center" />
         <widget name="onlineDot" position="145,21" size="32,32"
-                pixmap="/usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons/dot-checking.png"
                 alphatest="blend" />
         <widget name="connection" position="181,15" size="280,45"
                 font="Regular;23" halign="left" valign="center" />
@@ -663,17 +689,21 @@ class DownloadScreen(Screen):
         <widget name="status" position="35,608" size="1110,32"
                 font="Regular;21" halign="center" />
         <widget name="keysLeft" position="120,648" size="430,30"
-                 font="Regular;22" halign="right" />
-        <widget name="greenKey" position="550,648" size="78,30"
-                 font="Regular;22" halign="center" foregroundColor="#00ff00" />
-        <widget name="downloadKey" position="628,648" size="160,30"
-                 font="Regular;22" halign="left" />
+                font="Regular;22" halign="right" />
+        <widget name="greenKey" position="550,648" size="60,30"
+                font="Regular;22" halign="center" foregroundColor="#00ff00" />
+        <widget name="downloadKey" position="550,648" size="110,30"
+                font="Regular;22" halign="left" />
         <widget name="exitKey" position="815,648" size="180,30"
                 font="Regular;22" halign="left" />
     </screen>
     """
 
     def __init__(self, session):
+        try:
+            ensure_assets()
+        except Exception:
+            pass
         Screen.__init__(self, session)
         self.setTitle(tr("Download Picons"))
         self.selected = {}
@@ -713,9 +743,18 @@ class DownloadScreen(Screen):
             -1,
         )
         self.onClose.append(self._cleanup)
-        self.onShown.append(self._resize_connection_label)
+        self.onShown.append(self._screen_shown)
         self.refresh_list()
         self._run_background("catalog", self._check_download_servers)
+
+    def _screen_shown(self):
+        self._resize_connection_label()
+        colors = {
+            "primary": "green",
+            "fallback": "yellow",
+            "offline": "red",
+        }
+        self._set_connection_dot(colors.get(self.connectivity, "checking"))
 
     def _cleanup(self):
         self.screen_closed = True
@@ -778,22 +817,22 @@ class DownloadScreen(Screen):
         if state == "primary":
             self._set_connection_text(tr("Online"))
             self._set_connection_dot("green")
-            self["status"].setText(
+            _set_text(self["status"], 
                 tr("Connected to the main server")
             )
         elif state == "fallback":
             self._set_connection_text(tr("Backup server"))
             self._set_connection_dot("yellow")
-            self["status"].setText(
+            _set_text(self["status"], 
                 tr("Main server is unavailable; backup server is ready")
             )
         else:
             self._set_connection_text(tr("Offline"))
             self._set_connection_dot("red")
-            self["status"].setText(tr("Neither download server is available"))
+            _set_text(self["status"], tr("Neither download server is available"))
 
     def _set_connection_text(self, text):
-        self["connection"].setText(text)
+        _set_text(self["connection"], text)
         self._resize_connection_label()
 
     def _resize_connection_label(self):
@@ -807,7 +846,7 @@ class DownloadScreen(Screen):
             pass
 
     def _set_connection_dot(self, color):
-        path = os.path.join(PLUGIN_PATH, "dot-%s.png" % color)
+        path = asset_path("dot-%s.png" % color)
         if os.path.exists(path) and self["onlineDot"].instance is not None:
             self["onlineDot"].instance.setPixmapFromFile(path)
 
@@ -836,7 +875,7 @@ class DownloadScreen(Screen):
                     size=(32, 32),
                     png=LoadPixmap(
                         cached=True,
-                        path=os.path.join(PLUGIN_PATH, "check.png"),
+                        path=asset_path("check.png"),
                     ),
                 ))
             else:
@@ -886,7 +925,7 @@ class DownloadScreen(Screen):
             del self.selected[stem]
         else:
             self.selected[stem] = title
-            self["status"].setText(tr("Selected: %s") % title)
+            _set_text(self["status"], tr("Selected: %s") % title)
         self.refresh_list()
 
     def download_selected(self):
@@ -921,7 +960,7 @@ class DownloadScreen(Screen):
     def _start_download(self, stems):
         self.busy = True
         self["progress"].setValue(0)
-        self["status"].setText(tr("Downloading selected picons..."))
+        _set_text(self["status"], tr("Downloading selected picons..."))
         self._run_background("download", self._download_all, stems)
 
     def _report_download_progress(self, percent, current, total):
@@ -934,7 +973,7 @@ class DownloadScreen(Screen):
             return
         percent = max(0, min(100, int(percent)))
         self["progress"].setValue(percent)
-        self["status"].setText(
+        _set_text(self["status"], 
             tr("Downloading: %d%% (%d/%d)") % (percent, current, total)
         )
 
@@ -1059,7 +1098,7 @@ class DownloadScreen(Screen):
         if success:
             count, destination, completed_stems = result
             self["progress"].setValue(100)
-            self["status"].setText(
+            _set_text(self["status"], 
                 tr("Download completed: %d PNG files") % count
             )
             self.session.open(
@@ -1074,13 +1113,140 @@ class DownloadScreen(Screen):
             self.refresh_list()
         else:
             self["progress"].setValue(0)
-            self["status"].setText(tr("Download failed"))
+            _set_text(self["status"], tr("Download failed"))
             self.session.open(
                 MessageBox,
                 tr("The picons could not be downloaded or verified. Please try again."),
                 MessageBox.TYPE_ERROR,
                 timeout=8,
             )
+
+
+class LatestUpdatesScreen(Screen):
+    skin = """
+    <screen name="LatestUpdatesScreen" position="center,center" size="900,620"
+            title="Latest Updates">
+        <widget name="heading" position="40,25" size="820,50"
+                font="Regular;34" halign="center" />
+        <widget name="updates" position="70,100" size="760,390"
+                scrollbarMode="showOnDemand" />
+        <widget name="status" position="55,510" size="790,42"
+                font="Regular;23" halign="center" />
+        <widget name="hint" position="55,565" size="790,32"
+                font="Regular;21" halign="center" foregroundColor="#aaaaaa" />
+    </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.setTitle(tr("Latest Updates"))
+        self["heading"] = Label(tr("Latest Updates"))
+        self["updates"] = MenuList(
+            [], enableWrapAround=True, content=eListboxPythonMultiContent
+        )
+        self["updates"].l.setFont(0, gFont("Regular", 30))
+        self["updates"].l.setItemHeight(40)
+        self["status"] = Label(tr("Loading latest updates..."))
+        self["hint"] = Label(tr("EXIT: Back"))
+        self["actions"] = ActionMap(
+            ["OkCancelActions"], {"ok": self.close, "cancel": self.close}, -1
+        )
+
+        self.closed = False
+        self.background_result = None
+        self._timer_connections = []
+        self.result_timer = eTimer()
+        self._connect_timer(self.result_timer, self._poll_background)
+        self.onShown.append(self._start_on_shown)
+        self.onClose.append(self._cleanup)
+
+    def _start_on_shown(self):
+        try:
+            self.onShown.remove(self._start_on_shown)
+        except Exception:
+            pass
+        self._run_background(self._load_latest_updates)
+
+    def _connect_timer(self, timer, callback):
+        try:
+            connection = timer.timeout.connect(callback)
+            self._timer_connections.append(connection)
+            return
+        except Exception:
+            pass
+        timer.callback.append(callback)
+
+    def _cleanup(self):
+        self.closed = True
+        try:
+            self.result_timer.stop()
+        except Exception:
+            pass
+
+    def _run_background(self, function):
+        self.background_result = None
+        self.result_timer.start(100, False)
+
+        def worker():
+            try:
+                self.background_result = (True, function())
+            except Exception as error:
+                self.background_result = (False, str(error))
+
+        thread = threading.Thread(target=worker)
+        thread.daemon = True
+        thread.start()
+
+    def _poll_background(self):
+        if self.closed:
+            return
+        result = self.background_result
+        if result is None:
+            return
+        self.result_timer.stop()
+        self.background_result = None
+        success, payload = result
+        if not success:
+            message = tr("Updates cannot be checked right now.")
+            _set_text(self["status"], message)
+            self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=5)
+            return
+
+        source_name, lines = payload
+        rows = []
+        for line in lines:
+            rows.append([
+                _menu_text(line),
+                MultiContentEntryText(
+                    pos=(12, 0), size=(730, 40), font=0,
+                    flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
+                    text=_menu_text(line),
+                ),
+            ])
+        self["updates"].setList(rows)
+        _set_text(self["status"], tr("Latest updates loaded."))
+
+    def _load_latest_updates(self):
+        errors = []
+        for source_name, base_url in PICONS_SOURCES:
+            try:
+                raw = _read_text(
+                    _join_url(base_url, LATEST_UPDATES_FILENAME),
+                    timeout=8,
+                    max_bytes=32 * 1024,
+                )
+                lines = []
+                for raw_line in raw.splitlines():
+                    line = raw_line.strip()
+                    if line:
+                        lines.append(line)
+                if not lines:
+                    raise RuntimeError("Update news file is empty")
+                return source_name, lines[:10]
+            except Exception as error:
+                errors.append("%s: %s" % (source_name, error))
+        raise RuntimeError("; ".join(errors))
+
 
 class UpdateScreen(Screen):
     skin = """
@@ -1115,38 +1281,79 @@ class UpdateScreen(Screen):
         self["status"] = Label(tr("Checking for the latest version..."))
         self["hint"] = Label(tr("EXIT: Back"))
         self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.close}, -1)
+
         self.started = False
         self.closed = False
         self.check_pending = False
+        self.background_result = None
+        self.pending_progress = None
+        self.pending_installing = False
+
+        # Keep signal connection objects alive. Newer DreamOS images use
+        # eTimer.timeout.connect(); discarding the returned object disconnects
+        # the callback and leaves this screen at 0% forever.
+        self._timer_connections = []
+        self.result_timer = eTimer()
         self.check_timeout_timer = eTimer()
-        self.onShown.append(self.start_update)
+        self._connect_timer(self.result_timer, self._poll_background)
+        self._connect_timer(self.check_timeout_timer, self._check_timed_out)
+
+        # Start only after the screen is visible; this is more reliable than a
+        # separate one-shot start timer across DreamOS/Enigma2 variants.
+        self.onShown.append(self._start_on_shown)
         self.onClose.append(self._cleanup)
+
+    def _start_on_shown(self):
+        try:
+            self.onShown.remove(self._start_on_shown)
+        except Exception:
+            pass
+        self.start_update()
+
+    def _connect_timer(self, timer, callback):
+        try:
+            connection = timer.timeout.connect(callback)
+            self._timer_connections.append(connection)
+            return
+        except Exception:
+            pass
+        timer.callback.append(callback)
 
     def _cleanup(self):
         self.closed = True
         self.check_pending = False
-        try:
-            self.check_timeout_timer.stop()
-        except Exception:
-            pass
+        for timer in (self.result_timer, self.check_timeout_timer):
+            try:
+                timer.stop()
+            except Exception:
+                pass
 
     def start_update(self):
-        if self.started:
+        if self.started or self.closed:
             return
         self.started = True
         self.check_pending = True
-        _timer_start(self.check_timeout_timer, 12000, self._check_timed_out)
+        self.check_timeout_timer.start(15000, True)
         self._run_background("check", self._check_latest)
 
     def _check_timed_out(self):
         if self.closed or not self.check_pending:
             return
         self.check_pending = False
+        try:
+            self.result_timer.stop()
+        except Exception:
+            pass
+        self["progress"].setValue(0)
+        _set_text(self["percent"], "--")
         message = tr("The update check timed out. Please try again.")
-        self["status"].setText(message)
-        self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
+        _set_text(self["status"], message)
+        self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=8)
 
     def _run_background(self, kind, function, *args):
+        self.background_result = None
+        self.result_timer.start(100, False)
+
         def worker():
             try:
                 result = function(*args)
@@ -1154,25 +1361,107 @@ class UpdateScreen(Screen):
             except Exception as error:
                 result = str(error)
                 success = False
-            reactor.callFromThread(self._background_finished, kind, success, result)
+            # A single tuple assignment is safe here; the eTimer reads it from
+            # the Enigma2 main thread and performs every UI update there.
+            self.background_result = (kind, success, result)
+
         thread = threading.Thread(target=worker)
         thread.daemon = True
         thread.start()
 
-    def _check_latest(self):
-        raw_release = _read_text(
-            LATEST_RELEASE_API,
-            timeout=12,
-            max_bytes=2 * 1024 * 1024,
-        )
-        release_data = json.loads(raw_release)
-        if not isinstance(release_data, dict):
-            raise RuntimeError("Invalid GitHub release response")
+    def _poll_background(self):
+        if self.closed:
+            return
 
-        tag = release_data.get("tag_name")
-        if not tag:
-            raise RuntimeError("GitHub release has no version tag")
-        latest = tag.lstrip("vV")
+        if self.pending_progress is not None:
+            percent = self.pending_progress
+            self.pending_progress = None
+            self._show_progress(percent)
+
+        if self.pending_installing:
+            self.pending_installing = False
+            self._show_installing()
+
+        completed = self.background_result
+        if completed is None:
+            return
+
+        self.result_timer.stop()
+        self.background_result = None
+        kind, success, result = completed
+        self._background_finished(kind, success, result)
+
+    def _check_latest(self):
+        # Prefer the normal GitHub releases page. It redirects to the latest tag
+        # and is often reachable even when api.github.com is blocked or slow.
+        latest = None
+        tag = None
+        release_data = None
+        errors = []
+
+        try:
+            response = _request(LATEST_RELEASE_PAGE, timeout=4)
+            try:
+                final_url = response.geturl()
+            finally:
+                response.close()
+            match = re.search(r"/releases/tag/([^/?#]+)", final_url or "")
+            if not match:
+                raise RuntimeError("GitHub latest-release redirect has no tag")
+            tag = match.group(1)
+            latest = tag.lstrip("vV")
+        except Exception as error:
+            errors.append("release page: %s" % error)
+
+        # Fall back to the GitHub API so assets and their sizes can still be
+        # read when the API is available.
+        if not latest:
+            try:
+                raw_release = _read_text(
+                    LATEST_RELEASE_API,
+                    timeout=4,
+                    max_bytes=512 * 1024,
+                )
+                release_data = json.loads(raw_release)
+                if not isinstance(release_data, dict):
+                    raise RuntimeError("Invalid GitHub release response")
+                tag = release_data.get("tag_name")
+                if not tag:
+                    raise RuntimeError("GitHub release has no version tag")
+                latest = tag.lstrip("vV")
+            except Exception as error:
+                release_data = None
+                errors.append("release API: %s" % error)
+
+        # Last fallback: read the version from the small source file on main.
+        # The download URL is then built from the conventional v<version> tag.
+        if not latest:
+            try:
+                version_source = _read_text(
+                    LATEST_VERSION_FILE,
+                    timeout=4,
+                    max_bytes=16 * 1024,
+                )
+                match = re.search(
+                    r'^PLUGIN_VERSION\s*=\s*["\x27]([^"\x27]+)["\x27]',
+                    version_source,
+                    re.M,
+                )
+                if not match:
+                    raise RuntimeError("PLUGIN_VERSION was not found")
+                latest = match.group(1)
+                tag = "v" + latest
+            except Exception as error:
+                errors.append("version file: %s" % error)
+
+        if not latest or not tag:
+            raise RuntimeError(
+                "Unable to determine the latest version (%s)"
+                % "; ".join(errors)
+            )
+
+        if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
+            return latest, None, None, None
 
         if _command_available("dpkg"):
             extension, installer = ".deb", "dpkg"
@@ -1187,34 +1476,48 @@ class UpdateScreen(Screen):
             extension,
         )
         selected_asset = None
-        assets = release_data.get("assets") or []
-        if not isinstance(assets, list):
-            assets = []
 
-        for asset in assets:
-            if not isinstance(asset, dict):
-                continue
-            if asset.get("name") != expected:
-                continue
-            download_url = asset.get("browser_download_url")
-            if not download_url:
-                continue
-            try:
-                asset_size = int(asset.get("size") or 0)
-            except (TypeError, ValueError):
-                asset_size = 0
+        if isinstance(release_data, dict):
+            assets = release_data.get("assets") or []
+            if not isinstance(assets, list):
+                assets = []
+            for asset in assets:
+                if not isinstance(asset, dict):
+                    continue
+                if asset.get("name") != expected:
+                    continue
+                download_url = asset.get("browser_download_url")
+                if not download_url:
+                    continue
+                try:
+                    asset_size = int(asset.get("size") or 0)
+                except (TypeError, ValueError):
+                    asset_size = 0
+                selected_asset = {
+                    "name": expected,
+                    "browser_download_url": download_url,
+                    "size": asset_size,
+                }
+                break
+
+        # The release-page and version-file methods do not return asset JSON.
+        # Build the deterministic URL used by this repository's releases.
+        if selected_asset is None:
             selected_asset = {
                 "name": expected,
-                "browser_download_url": download_url,
-                "size": asset_size,
+                "browser_download_url": (
+                    "https://github.com/%s/releases/download/%s/%s"
+                    % (REPOSITORY, tag, expected)
+                ),
+                "size": 0,
             }
-            break
 
         return latest, installer, extension, selected_asset
 
     def _background_finished(self, kind, success, result):
         if self.closed:
             return
+
         if kind == "check":
             if not self.check_pending:
                 return
@@ -1223,29 +1526,49 @@ class UpdateScreen(Screen):
                 self.check_timeout_timer.stop()
             except Exception:
                 pass
+
         if not success:
-            self["status"].setText(tr("The update could not be completed."))
-            self.session.open(MessageBox, "%s\n%s" % (tr("The update could not be completed."), result), MessageBox.TYPE_ERROR, timeout=8)
+            self["progress"].setValue(0)
+            _set_text(self["percent"], "--")
+            message = "%s\n%s" % (
+                tr("The update could not be completed."),
+                result,
+            )
+            _set_text(self["status"], message)
+            self.session.open(
+                MessageBox,
+                message,
+                MessageBox.TYPE_ERROR,
+                timeout=10,
+            )
             return
+
         if kind == "check":
             latest = result[0]
-            self["latest"].setText(tr("Latest version: %s") % latest)
+            _set_text(self["latest"], tr("Latest version: %s") % latest)
             if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
-                self["status"].setText(tr("No new version is available."))
-                self.session.open(MessageBox, tr("No new version is available."), MessageBox.TYPE_INFO, timeout=5)
+                self["progress"].setValue(100)
+                _set_text(self["percent"], "100%")
+                _set_text(self["status"], tr("No new version is available."))
                 return
             if result[3] is None:
-                message = tr("The update package was not found in the latest GitHub release.")
-                self["status"].setText(message)
-                self.session.open(MessageBox, message, MessageBox.TYPE_ERROR, timeout=7)
+                message = tr("The update package was not found in the latest release.")
+                _set_text(self["status"], message)
+                self.session.open(
+                    MessageBox,
+                    message,
+                    MessageBox.TYPE_ERROR,
+                    timeout=8,
+                )
                 return
-            self["status"].setText(tr("Downloading update: %d%%") % 0)
+            _set_text(self["status"], tr("Downloading update: %d%%") % 0)
             self._run_background("install", self._download_and_install, result)
             return
+
         self["progress"].setValue(100)
-        self["percent"].setText("100%")
+        _set_text(self["percent"], "100%")
         message = tr("Update installed successfully. Please restart Enigma2.")
-        self["status"].setText(message)
+        _set_text(self["status"], message)
         self.session.open(MessageBox, message, MessageBox.TYPE_INFO, timeout=10)
 
     def _download_and_install(self, update_info):
@@ -1272,13 +1595,13 @@ class UpdateScreen(Screen):
                     package.write(block)
                     downloaded += len(block)
                     if total:
-                        percent = min(99, int(downloaded * 100 / total))
-                        reactor.callFromThread(self._show_progress, percent)
+                        self.pending_progress = min(99, int(downloaded * 100 / total))
             finally:
                 package.close()
         finally:
             response.close()
-        reactor.callFromThread(self._show_installing)
+
+        self.pending_installing = True
         command = ["dpkg", "-i", target] if installer == "dpkg" else ["opkg", "install", target]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         output = process.communicate()[0]
@@ -1296,15 +1619,15 @@ class UpdateScreen(Screen):
         if self.closed:
             return
         self["progress"].setValue(percent)
-        self["percent"].setText("%d%%" % percent)
-        self["status"].setText(tr("Downloading update: %d%%") % percent)
+        _set_text(self["percent"], "%d%%" % percent)
+        _set_text(self["status"], tr("Downloading update: %d%%") % percent)
 
     def _show_installing(self):
         if self.closed:
             return
         self["progress"].setValue(100)
-        self["percent"].setText("100%")
-        self["status"].setText(tr("Installing update..."))
+        _set_text(self["percent"], "100%")
+        _set_text(self["status"], tr("Installing update..."))
 
 
 class AboutScreen(Screen):
