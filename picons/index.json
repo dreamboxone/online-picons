@@ -1,6 +1,6 @@
-{
+﻿{
     "schema_version":  1,
-    "updated_at": "2026-07-31T00:00:00Z",
+    "updated_at":  "2026-07-31T00:00:00Z",
     "archive_format":  "tar.gz",
     "sources":  {
                     "primary":  "https://thee.ir/picons/",
@@ -33,11 +33,11 @@
                       "enabled":  true
                   },
                   {
-                  "name": "13e.tar.gz",
-  		  "satellite_position": "13e",
-  		  "size": 49648057,
-                  "sha256": "517b40c1c591e718f9e6a7fd60a554658cd3c2aaba465d47364c0c43f8e2e5f6",
-                  "enabled": true
+                      "name":  "13e.tar.gz",
+                      "satellite_position":  "13e",
+                      "size":  49648057,
+                      "sha256":  "517b40c1c591e718f9e6a7fd60a554658cd3c2aaba465d47364c0c43f8e2e5f6",
+                      "enabled":  true
                   },
                   {
                       "name":  "15w.tar.gz",
