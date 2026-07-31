@@ -1,6 +1,6 @@
 {
     "schema_version":  1,
-    "updated_at": "2026-07-28T00:00:00Z",
+    "updated_at": "2026-07-31T00:00:00Z",
     "archive_format":  "tar.gz",
     "sources":  {
                     "primary":  "https://thee.ir/picons/",
@@ -26,10 +26,17 @@
                       "enabled":  true
                   },
                   {
+                      "name":  "10e.tar.gz",
+                      "satellite_position":  "10e",
+                      "size":  513761,
+                      "sha256":  "d008384883402dba43f7d5ec2ccba81fb7e77c2cbc5f6d76ac97588efe9d24e3",
+                      "enabled":  true
+                  },
+                  {
                   "name": "13e.tar.gz",
   		  "satellite_position": "13e",
-  		  "size": 49556502,
-                  "sha256": "1193f7d2b39c8a8e793647cc30078f047055748d04ec8a25946d2655aaaae926",
+  		  "size": 49648057,
+                  "sha256": "517b40c1c591e718f9e6a7fd60a554658cd3c2aaba465d47364c0c43f8e2e5f6",
                   "enabled": true
                   },
                   {
@@ -82,6 +89,20 @@
                       "enabled":  true
                   },
                   {
+                      "name":  "30.5e.tar.gz",
+                      "satellite_position":  "30.5e",
+                      "size":  887878,
+                      "sha256":  "c8aaf3d9b6f04b54e838b189dabb7fc4572d51605b57b410ddfa0ebddc3e37d0",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "39e.tar.gz",
+                      "satellite_position":  "39e",
+                      "size":  259444,
+                      "sha256":  "46af8f45d051af46b54b2a895faab211f7e1c7cf128c25a0cc62dbb8013b4542",
+                      "enabled":  true
+                  },
+                  {
                       "name":  "4.8e.tar.gz",
                       "satellite_position":  "4.8e",
                       "size":  5835081,
@@ -124,6 +145,13 @@
                       "enabled":  true
                   },
                   {
+                      "name":  "5w.tar.gz",
+                      "satellite_position":  "5w",
+                      "size":  9149809,
+                      "sha256":  "29250c7b93e7411eddecdaed184e5c5cdf2fd89bc8b603a278221f169f49ef64",
+                      "enabled":  true
+                  },
+                  {
                       "name":  "52.5e.tar.gz",
                       "satellite_position":  "52.5e",
                       "size":  8820516,
@@ -133,15 +161,15 @@
                   {
                       "name":  "52e.tar.gz",
                       "satellite_position":  "52e",
-                      "size":  20030253,
-                      "sha256":  "0caae91eaf663aa7234f7e112461786e0e0ce6dc15f65ce37e7bbcae03b7d0e7",
+                      "size":  20065088,
+                      "sha256":  "5b9c052ea267bcb82feb8b7bac57d4f0f6c9e43c75d04c5c13c74ba360612898",
                       "enabled":  true
                   },
                   {
                       "name":  "53e.tar.gz",
                       "satellite_position":  "53e",
-                      "size":  2533917,
-                      "sha256":  "96924b37a16cba1b7d5c2dc0adb3339e525734f31b4c87ea493e04e78db3aa98",
+                      "size":  2558209,
+                      "sha256":  "31e3fdc3ba64e8819bb1386fdf609d446b07c39e1efda2bf8d37d8db9f1e5441",
                       "enabled":  true
                   },
                   {
@@ -180,6 +208,13 @@
                       "enabled":  true
                   },
                   {
+                      "name":  "75e.tar.gz",
+                      "satellite_position":  "75e",
+                      "size":  19888,
+                      "sha256":  "b6c2606537da65cda6247866c325789984cf153d9d59ca32cd119de262bd68cc",
+                      "enabled":  true
+                  },
+                  {
                       "name":  "78.5e.tar.gz",
                       "satellite_position":  "78.5e",
                       "size":  2230551,
@@ -196,8 +231,8 @@
                   {
                       "name":  "7w.tar.gz",
                       "satellite_position":  "7w",
-                      "size":  33692817,
-                      "sha256":  "76a3145429cf66e74b6149e598f076fc236421550b8d3890b3fc8984d219c7a8",
+                      "size":  33703241,
+                      "sha256":  "f51206fd98018f6968a6af5180eba2f18331302486dff41e841f869e081a8cc6",
                       "enabled":  true
                   },
                   {
