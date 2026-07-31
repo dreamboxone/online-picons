@@ -1,0 +1,267 @@
+{
+    "schema_version":  1,
+    "updated_at":  "2026-07-31T00:00:00Z",
+    "archive_format":  "tar.gz",
+    "sources":  {
+                    "primary":  "https://thee.ir/picons/",
+                    "fallback":  "https://raw.githubusercontent.com/dreamboxone/online-picons/main/picons/"
+                },
+    "health":  {
+                   "file":  "health.txt",
+                   "expected":  "ONLINE-PICONS-OK"
+               },
+    "files":  [
+                  {
+                      "name":  "0.8w.tar.gz",
+                      "satellite_position":  "0.8w",
+                      "size":  21222292,
+                      "sha256":  "8942db5f4495d12585ffd2115ef50e49e9caaa09bde77e528065ada1330d7c38",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "1.9e.tar.gz",
+                      "satellite_position":  "1.9e",
+                      "size":  6542747,
+                      "sha256":  "ef74f1b29a2c302dd0247a291ca6affabce851c69b49207edd38f3fe3965be52",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "10e.tar.gz",
+                      "satellite_position":  "10e",
+                      "size":  513761,
+                      "sha256":  "d008384883402dba43f7d5ec2ccba81fb7e77c2cbc5f6d76ac97588efe9d24e3",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "13e.tar.gz",
+                      "satellite_position":  "13e",
+                      "size":  49648057,
+                      "sha256":  "517b40c1c591e718f9e6a7fd60a554658cd3c2aaba465d47364c0c43f8e2e5f6",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "15w.tar.gz",
+                      "satellite_position":  "15w",
+                      "size":  32068,
+                      "sha256":  "99a212a14825f88879a04a11e1b4f0d82be626b2a712c76fe170e0372ed9f9e8",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "16e.tar.gz",
+                      "satellite_position":  "16e",
+                      "size":  21209701,
+                      "sha256":  "9e7cc0958bc4e982857c23dba587c8ddd665ba2dc385d550fd56ec1e59ccc9b7",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "19.2e.tar.gz",
+                      "satellite_position":  "19.2e",
+                      "size":  22427170,
+                      "sha256":  "1671d5821e2c6fc9d28d37523e14a896d5c4eb1c4dd67460443c77bc4a8c8b9d",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "21.5e.tar.gz",
+                      "satellite_position":  "21.5e",
+                      "size":  2206502,
+                      "sha256":  "bfb703e7a235f3b839ca836f65177a7d62331d96274252b2fbdd989a3a42bccc",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "23.5e.tar.gz",
+                      "satellite_position":  "23.5e",
+                      "size":  26426,
+                      "sha256":  "2a68bba0eb31ad5eebe9ecdbc104bc0d916f0b3ecfd4aba210031aedb8dc0c5c",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "26e.tar.gz",
+                      "satellite_position":  "26e",
+                      "size":  38024394,
+                      "sha256":  "8f6f2e33ccbc5d04a83dfcd812af70dbf1f3837d917358d9cd82438f7c6be530",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "3e.tar.gz",
+                      "satellite_position":  "3e",
+                      "size":  280355,
+                      "sha256":  "45b63bd95d849c2ff425cad2d356d45fe34988187300ae66546a199208b84eb6",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "30.5e.tar.gz",
+                      "satellite_position":  "30.5e",
+                      "size":  887878,
+                      "sha256":  "c8aaf3d9b6f04b54e838b189dabb7fc4572d51605b57b410ddfa0ebddc3e37d0",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "39e.tar.gz",
+                      "satellite_position":  "39e",
+                      "size":  259444,
+                      "sha256":  "46af8f45d051af46b54b2a895faab211f7e1c7cf128c25a0cc62dbb8013b4542",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "4.8e.tar.gz",
+                      "satellite_position":  "4.8e",
+                      "size":  5835081,
+                      "sha256":  "f919c95fbdc2a35891ac7b1b48440afa348ddafb636760d00071fdccc32996c8",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "40e.tar.gz",
+                      "satellite_position":  "40e",
+                      "size":  504680,
+                      "sha256":  "171dbbc90a9c9caeefec36b15850f22bb8f179c62f17c0953ce945cd10ec97f0",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "42e.tar.gz",
+                      "satellite_position":  "42e",
+                      "size":  17787516,
+                      "sha256":  "6935ad531ba07021dfca6b04da8911863a846997005201ed6094915dd9a48a49",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "45e.tar.gz",
+                      "satellite_position":  "45e",
+                      "size":  5254292,
+                      "sha256":  "8b4d93e615a68d4d2954bcb0a796cc6f6957b0e36ca51c6da332791087f6fd48",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "46e.tar.gz",
+                      "satellite_position":  "46e",
+                      "size":  4473672,
+                      "sha256":  "43d38dbcf927927c84fab8b8a9ad7681e8cbf536b722d0f04780cbbca7f67aa8",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "4w.tar.gz",
+                      "satellite_position":  "4w",
+                      "size":  6106128,
+                      "sha256":  "29d61d276931ace5254144b2adca090f8866fc205b03f692bd7e56dd25c1ad75",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "5w.tar.gz",
+                      "satellite_position":  "5w",
+                      "size":  9149809,
+                      "sha256":  "29250c7b93e7411eddecdaed184e5c5cdf2fd89bc8b603a278221f169f49ef64",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "52.5e.tar.gz",
+                      "satellite_position":  "52.5e",
+                      "size":  8820516,
+                      "sha256":  "a143c09f04f92a8f358dd4aae849bbd0995caf69baf04f62d9be92b113a9eb53",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "52e.tar.gz",
+                      "satellite_position":  "52e",
+                      "size":  20065088,
+                      "sha256":  "5b9c052ea267bcb82feb8b7bac57d4f0f6c9e43c75d04c5c13c74ba360612898",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "53e.tar.gz",
+                      "satellite_position":  "53e",
+                      "size":  2558209,
+                      "sha256":  "31e3fdc3ba64e8819bb1386fdf609d446b07c39e1efda2bf8d37d8db9f1e5441",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "56e.tar.gz",
+                      "satellite_position":  "56e",
+                      "size":  58151,
+                      "sha256":  "0c901c8646cdc1ac41597e1496fb9e3fbe0fb6c02512ca9cfc5e5832df00f12a",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "57e.tar.gz",
+                      "satellite_position":  "57e",
+                      "size":  637999,
+                      "sha256":  "eef83151f028aa4754c85f8a2226b202b35219d4043567fab5f6569a23f10efe",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "62e.tar.gz",
+                      "satellite_position":  "62e",
+                      "size":  6013278,
+                      "sha256":  "a914b94e05277f86bf1d88af1c3b2d8df9f41b330b7271261d162f25334f3a2d",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "68.5e.tar.gz",
+                      "satellite_position":  "68.5e",
+                      "size":  34402,
+                      "sha256":  "dd0439de1915b704bb8af5739418469eb1e40bbde1514b780f5ff7b4b1c19736",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "70.5e.tar.gz",
+                      "satellite_position":  "70.5e",
+                      "size":  1087010,
+                      "sha256":  "8be1ad638dcd1d23fb7982f41fdb4a971e78164be73d5550f4095d91ead8c379",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "75e.tar.gz",
+                      "satellite_position":  "75e",
+                      "size":  19888,
+                      "sha256":  "b6c2606537da65cda6247866c325789984cf153d9d59ca32cd119de262bd68cc",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "78.5e.tar.gz",
+                      "satellite_position":  "78.5e",
+                      "size":  2230551,
+                      "sha256":  "902ccccb7df7e9d20d7920e4b135129660503b9b7830900e875cc922e4cb8278",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "7e.tar.gz",
+                      "satellite_position":  "7e",
+                      "size":  5645923,
+                      "sha256":  "5d3dcf6eaaf2323f44a4b7f94cbde66807b5c1dd0197cfce8e39ca01537dd87e",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "7w.tar.gz",
+                      "satellite_position":  "7w",
+                      "size":  33703241,
+                      "sha256":  "f51206fd98018f6968a6af5180eba2f18331302486dff41e841f869e081a8cc6",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "80e.tar.gz",
+                      "satellite_position":  "80e",
+                      "size":  12184604,
+                      "sha256":  "d1c0884ba687359e37366ac451b2c085bad769c3cc05de11b483044510432eff",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "8w.tar.gz",
+                      "satellite_position":  "8w",
+                      "size":  20802001,
+                      "sha256":  "73ab5bf48803e8afe832ee30e7d22dd1999950a30dddfad459d609366a6b6fa4",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "97.5e.tar.gz",
+                      "satellite_position":  "97.5e",
+                      "size":  279223,
+                      "sha256":  "39d33bad9c0cfd97978cae29c0bba0cd1a97376ebb41a6d8672708b044918ac4",
+                      "enabled":  true
+                  },
+                  {
+                      "name":  "9e.tar.gz",
+                      "satellite_position":  "9e",
+                      "size":  20468414,
+                      "sha256":  "d9174fa3e358c49030d1200472d9c2781c32c8e21c455d9727e5b67de31046a4",
+                      "enabled":  true
+                  }
+              ]
+}
