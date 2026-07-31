@@ -3,7 +3,7 @@
     "updated_at":  "2026-07-31T00:00:00Z",
     "archive_format":  "tar.gz",
     "sources":  {
-                    "primary":  "https://thee.ir/picons/",
+                    "primary":  "http://thee.ir/picons/",
                     "fallback":  "https://raw.githubusercontent.com/dreamboxone/online-picons/main/picons/"
                 },
     "health":  {
@@ -265,3 +265,4 @@
                   }
               ]
 }
+
