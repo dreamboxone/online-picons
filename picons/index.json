@@ -95,6 +95,13 @@
                       "sha256":  "c8aaf3d9b6f04b54e838b189dabb7fc4572d51605b57b410ddfa0ebddc3e37d0",
                       "enabled":  true
                   },
+                                    {
+                      "name":  "33e.tar.gz",
+                      "satellite_position":  "33e",
+                      "size":  43655,
+                      "sha256":  "e527f0239876eaf37ce06d0d360d4d4eda99d83732fc6cbe99ec19d0fab9c919",
+                      "enabled":  true
+                  },
                   {
                       "name":  "39e.tar.gz",
                       "satellite_position":  "39e",
