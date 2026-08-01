@@ -58,7 +58,7 @@ LATEST_RELEASE_API = "https://api.github.com/repos/%s/releases/latest" % REPOSIT
 LATEST_RELEASE_PAGE = "https://github.com/%s/releases/latest" % REPOSITORY
 LATEST_VERSION_FILE = "%s/OnlinePicons/__init__.py" % RAW_BASE
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
-PRIMARY_PICONS_BASE = "http://thee.ir/picons"
+PRIMARY_PICONS_BASE = "https://thee.ir/picons"
 GITHUB_PICONS_BASE = "%s/picons" % RAW_BASE
 PICONS_SOURCES = (
     ("main", PRIMARY_PICONS_BASE),
