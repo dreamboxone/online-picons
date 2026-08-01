@@ -107,6 +107,17 @@ def _set_menu_style(menu, font_size, item_height):
         pass
 
 
+def _plugin_icon_path(icon):
+    menu_icon = "menu-%s" % icon
+    for directory in (PLUGIN_PATH, os.path.join(PLUGIN_PATH, "OnlinePicons")):
+        path = os.path.join(directory, menu_icon)
+        if os.path.isfile(path):
+            return path
+    if icon == "rss.png":
+        return asset_path(icon)
+    return os.path.join(PLUGIN_PATH, icon)
+
+
 if not hasattr(config.plugins, "onlinepicons"):
     config.plugins.onlinepicons = ConfigSubsection()
 config.plugins.onlinepicons.destination = ConfigText(
@@ -400,6 +411,14 @@ def _extractor_available():
     return _command_available("tar") or _command_available("bsdtar")
 
 
+def _preferred_package_manager():
+    if _command_available("opkg"):
+        return ".ipk", "opkg"
+    if _command_available("dpkg"):
+        return ".deb", "dpkg"
+    raise RuntimeError("No supported package manager was found")
+
+
 def _version_tuple(value):
     return tuple(int(number) for number in re.findall(r"\d+", value or ""))
 
@@ -450,9 +469,7 @@ class OnlinePiconsMain(Screen):
         _set_text(self["hint"], tr("OK: Select     EXIT: Close"))
 
     def _menu_entry(self, text, icon):
-        icon_path = asset_path(icon) if icon == "rss.png" else os.path.join(
-            PLUGIN_PATH, icon
-        )
+        icon_path = _plugin_icon_path(icon)
         return [
             _menu_text(text),
             MultiContentEntryPixmapAlphaTest(
@@ -565,12 +582,8 @@ class DestinationScreen(Screen):
         <widget name="custom" position="65,385" size="870,55"
                 font="Regular;25" halign="left" valign="center"
                 backgroundColor="#202020" transparent="0" />
-        <widget name="keysLeft" position="130,485" size="390,42"
-                font="Regular;22" halign="right" />
-        <widget name="greenKey" position="710,648" size="60,30"
-                font="Regular;22" halign="center" foregroundColor="#00ff00" />
-        <widget name="keysRight" position="598,485" size="270,42"
-                font="Regular;22" halign="left" />
+        <widget name="hint" position="45,505" size="910,34"
+                font="Regular;20" halign="center" foregroundColor="#aaaaaa" />
     </screen>
     """
 
@@ -595,9 +608,14 @@ class DestinationScreen(Screen):
         )
         _set_menu_style(self["paths"], 30, 48)
         self["custom"] = Label("")
-        self["keysLeft"] = Label(tr("OK: Select     BLUE: Edit custom path     "))
-        self["greenKey"] = Label(tr("GREEN"))
-        self["keysRight"] = Label(tr(": Save"))
+        self["hint"] = Label(
+            "%s%s%s     %s" % (
+                tr("OK: Select     BLUE: Edit custom path     "),
+                tr("GREEN"),
+                tr(": Save"),
+                tr("EXIT: Back"),
+            )
+        )
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -694,14 +712,8 @@ class DownloadScreen(Screen):
                 borderWidth="2" />
         <widget name="status" position="35,608" size="1110,32"
                 font="Regular;21" halign="center" />
-        <widget name="keysLeft" position="120,648" size="430,30"
-                font="Regular;22" halign="right" />
-        <widget name="greenKey" position="682,648" size="60,30"
-                font="Regular;22" halign="center" foregroundColor="#00ff00" />
-        <widget name="downloadKey" position="580,648" size="160,30"
-                font="Regular;22" halign="left" />
-        <widget name="exitKey" position="815,648" size="180,30"
-                font="Regular;22" halign="left" />
+        <widget name="hint" position="35,648" size="1110,30"
+                font="Regular;20" halign="center" foregroundColor="#aaaaaa" />
     </screen>
     """
 
@@ -735,10 +747,14 @@ class DownloadScreen(Screen):
         self["progress"] = ProgressBar()
         self["progress"].setValue(0)
         self["status"] = Label(tr("Checking download servers..."))
-        self["keysLeft"] = Label(tr("OK: Select/Unselect     "))
-        self["greenKey"] = Label(tr("GREEN"))
-        self["downloadKey"] = Label(tr(": Download"))
-        self["exitKey"] = Label(tr("EXIT: Back"))
+        self["hint"] = Label(
+            "%s%s%s     %s" % (
+                tr("OK: Select/Unselect     "),
+                tr("GREEN"),
+                tr(": Download"),
+                tr("EXIT: Back"),
+            )
+        )
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions"],
             {
@@ -1469,12 +1485,7 @@ class UpdateScreen(Screen):
         if _version_tuple(latest) <= _version_tuple(PLUGIN_VERSION):
             return latest, None, None, None
 
-        if _command_available("dpkg"):
-            extension, installer = ".deb", "dpkg"
-        elif _command_available("opkg"):
-            extension, installer = ".ipk", "opkg"
-        else:
-            raise RuntimeError("No supported package manager was found")
+        extension, installer = _preferred_package_manager()
 
         expected = "%s%s_all%s" % (
             UPDATE_PACKAGE_PREFIX,
