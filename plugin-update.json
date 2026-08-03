@@ -1,0 +1,18 @@
+{
+  "packages": {
+    "deb": {
+      "name": "enigma2-plugin-extensions-online-picons_1.1.29_all.deb",
+      "sha256": "2ea438915658f079caa43e8b0f5f82b93957ec5cd4f8136de0e463b56627a57d",
+      "size": 266472,
+      "url": "https://thee.ir/picons/enigma2-plugin-extensions-online-picons_1.1.29_all.deb"
+    },
+    "ipk": {
+      "name": "enigma2-plugin-extensions-online-picons_1.1.29_all.ipk",
+      "sha256": "2ea438915658f079caa43e8b0f5f82b93957ec5cd4f8136de0e463b56627a57d",
+      "size": 266472,
+      "url": "https://thee.ir/picons/enigma2-plugin-extensions-online-picons_1.1.29_all.ipk"
+    }
+  },
+  "schema_version": 1,
+  "version": "1.1.29"
+}
