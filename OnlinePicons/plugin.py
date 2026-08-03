@@ -59,6 +59,7 @@ LATEST_RELEASE_PAGE = "https://github.com/%s/releases/latest" % REPOSITORY
 LATEST_VERSION_FILE = "%s/OnlinePicons/__init__.py" % RAW_BASE
 UPDATE_PACKAGE_PREFIX = "enigma2-plugin-extensions-online-picons_"
 PRIMARY_PICONS_BASE = "https://thee.ir/picons"
+PRIMARY_UPDATE_MANIFEST = "%s/plugin-update.json" % PRIMARY_PICONS_BASE
 GITHUB_PICONS_BASE = "%s/picons" % RAW_BASE
 PICONS_SOURCES = (
     ("main", PRIMARY_PICONS_BASE),
@@ -416,10 +417,13 @@ def _extractor_available():
 
 
 def _preferred_package_manager():
-    if _command_available("opkg"):
-        return ".ipk", "opkg"
+    # DreamOS/Dreambox uses dpkg even on ARM64.  Some DreamOS images also
+    # expose an opkg compatibility command, so dpkg must be preferred there;
+    # otherwise an IPK is handed to apt/dpkg and produces "Unsupported file".
     if _command_available("dpkg"):
         return ".deb", "dpkg"
+    if _command_available("opkg"):
+        return ".ipk", "opkg"
     raise RuntimeError("No supported package manager was found")
 
 
@@ -1419,6 +1423,15 @@ class UpdateScreen(Screen):
         self._background_finished(kind, success, result)
 
     def _check_latest(self):
+        # Prefer the Iranian mirror.  If it is unavailable or malformed,
+        # continue with the GitHub release checks below.
+        try:
+            primary_update = self._check_primary_update()
+            if primary_update is not None:
+                return primary_update
+        except Exception:
+            pass
+
         # Prefer the normal GitHub releases page. It redirects to the latest tag
         # and is often reachable even when api.github.com is blocked or slow.
         latest = None
@@ -1536,6 +1549,41 @@ class UpdateScreen(Screen):
 
         return latest, installer, extension, selected_asset
 
+    def _check_primary_update(self):
+        manifest = json.loads(_read_text(PRIMARY_UPDATE_MANIFEST, timeout=5, max_bytes=64 * 1024))
+        if not isinstance(manifest, dict) or int(manifest.get("schema_version", 0) or 0) != 1:
+            raise RuntimeError("Invalid primary update manifest")
+        latest = str(manifest.get("version") or "").strip()
+        if not latest:
+            raise RuntimeError("Primary update manifest has no version")
+        extension, installer = _preferred_package_manager()
+        package = (manifest.get("packages") or {}).get(extension.lstrip("."))
+        if not isinstance(package, dict):
+            raise RuntimeError("Primary update manifest has no package for %s" % extension)
+        expected = "%s%s_all%s" % (UPDATE_PACKAGE_PREFIX, latest, extension)
+        name = package.get("name") or expected
+        if name != expected:
+            raise RuntimeError("Primary update package name does not match version")
+        url = package.get("url") or _join_url(PRIMARY_PICONS_BASE, name)
+        if not re.match(r"^https?://", url):
+            raise RuntimeError("Primary update URL is invalid")
+        try:
+            size = int(package.get("size") or 0)
+        except (TypeError, ValueError):
+            size = 0
+        checksum = (package.get("sha256") or "").lower()
+        if checksum and not re.match(r"^[0-9a-f]{64}$", checksum):
+            raise RuntimeError("Primary update checksum is invalid")
+        return latest, installer, extension, {
+            "name": name,
+            "browser_download_url": url,
+            "size": size,
+            "sha256": checksum,
+            "fallback_url": "https://github.com/%s/releases/download/v%s/%s" % (
+                REPOSITORY, latest, name
+            ),
+        }
+
     def _background_finished(self, kind, success, result):
         if self.closed:
             return
@@ -1616,7 +1664,18 @@ class UpdateScreen(Screen):
         if not url:
             raise RuntimeError("Release asset has no download URL")
         target = "/tmp/online-picons-update%s" % extension
-        response = _request(url, timeout=60)
+        try:
+            response = _request(url, timeout=60)
+        except Exception:
+            # If the primary mirror is down, retry the same release asset on
+            # GitHub instead of failing the update immediately.
+            fallback_url = asset.get("fallback_url")
+            if not fallback_url:
+                raise
+            response = _request(fallback_url, timeout=60)
+            asset = dict(asset)
+            asset["size"] = 0
+            asset["sha256"] = ""
         total = int(asset.get("size") or 0)
         if not total:
             try:
@@ -1624,6 +1683,7 @@ class UpdateScreen(Screen):
             except Exception:
                 total = 0
         downloaded = 0
+        digest = hashlib.sha256()
         try:
             package = open(target, "wb")
             try:
@@ -1632,6 +1692,7 @@ class UpdateScreen(Screen):
                     if not block:
                         break
                     package.write(block)
+                    digest.update(block)
                     downloaded += len(block)
                     if total:
                         self.pending_progress = min(99, int(downloaded * 100 / total))
@@ -1645,8 +1706,11 @@ class UpdateScreen(Screen):
         # "Unsupported file ... given on commandline" message on Dreambox.
         try:
             with open(target, "rb") as package:
-                if package.read(8) != b"!<arch>\\n":
+                if package.read(8) != b"!<arch>\n":
                     raise RuntimeError("Downloaded update is not a valid package")
+            expected_checksum = (asset.get("sha256") or "").lower()
+            if expected_checksum and digest.hexdigest() != expected_checksum:
+                raise RuntimeError("Downloaded update checksum does not match")
         except Exception:
             try:
                 os.unlink(target)

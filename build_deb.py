@@ -8,7 +8,9 @@ unchanged into the package.
 
 import argparse
 import gzip
+import hashlib
 import io
+import json
 import os
 import re
 import shutil
@@ -25,6 +27,7 @@ BUILD_DIR = ROOT / ".build"
 PACKAGE = "enigma2-plugin-extensions-online-picons"
 PLUGIN_TARGET = "usr/lib/enigma2/python/Plugins/Extensions/OnlinePicons"
 SOURCE_DATE_EPOCH = int(os.environ.get("SOURCE_DATE_EPOCH", "1767225600"))
+PRIMARY_UPDATE_BASE_URL = "https://thee.ir/picons"
 
 IGNORED_NAMES = {
     "__pycache__",
@@ -200,6 +203,28 @@ def package_payload(control_tar, data_tar):
     return output.getvalue()
 
 
+def write_update_manifest(version, formats):
+    packages = {}
+    for extension in formats:
+        path = OUTPUT_DIR / ("%s_%s_all.%s" % (PACKAGE, version, extension))
+        data = path.read_bytes()
+        packages[extension] = {
+            "name": path.name,
+            "url": "%s/%s" % (PRIMARY_UPDATE_BASE_URL, path.name),
+            "size": len(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+        }
+    manifest = {
+        "schema_version": 1,
+        "version": version,
+        "packages": packages,
+    }
+    (OUTPUT_DIR / "plugin-update.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Build Online Picons packages")
     parser.add_argument(
@@ -236,6 +261,9 @@ def main():
         )
         output_path.write_bytes(payload)
         print("Built: %s" % output_path)
+
+    write_update_manifest(version, formats)
+    print("Built: %s" % (OUTPUT_DIR / "plugin-update.json"))
 
     print("Version: %s" % version)
     print("Source icon preserved: OnlinePicons/plugin.png")
