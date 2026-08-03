@@ -137,6 +137,8 @@ TRANSLATIONS = {
         "Checking for the latest version...": "در حال بررسی آخرین نسخه...",
         "Downloading update: %d%%": "در حال دانلود به‌روزرسانی: %d%%",
         "Installing update...": "در حال نصب به‌روزرسانی...",
+        "A new version %s is available. Do you want to update now?": "نسخه جدید %s در دسترس است. آیا می‌خواهید اکنون به‌روزرسانی کنید؟",
+        "Update cancelled.": "به‌روزرسانی لغو شد.",
         "No new version is available.": "نسخه جدیدی برای نصب وجود ندارد.",
         "The update package was not found in the latest release.": "بسته به‌روزرسانی پیدا نشد.",
         "The update could not be completed.": "به‌روزرسانی انجام نشد.",
@@ -196,6 +198,8 @@ TRANSLATIONS = {
         "Checking for the latest version...": "جارٍ التحقق من أحدث إصدار...",
         "Downloading update: %d%%": "جارٍ تنزيل التحديث: %d%%",
         "Installing update...": "جارٍ تثبيت التحديث...",
+        "A new version %s is available. Do you want to update now?": "الإصدار الجديد %s متاح. هل تريد التحديث الآن؟",
+        "Update cancelled.": "تم إلغاء التحديث.",
         "No new version is available.": "لا يوجد إصدار جديد للتثبيت.",
         "The update package was not found in the latest release.": "لم يتم العثور على حزمة التحديث في أحدث إصدار.",
         "The update could not be completed.": "تعذر إكمال التحديث.",
@@ -1310,6 +1314,7 @@ class UpdateScreen(Screen):
         self.background_result = None
         self.pending_progress = None
         self.pending_installing = False
+        self.pending_update = None
 
         # Keep signal connection objects alive. Newer DreamOS images use
         # eTimer.timeout.connect(); discarding the returned object disconnects
@@ -1578,8 +1583,15 @@ class UpdateScreen(Screen):
                     timeout=8,
                 )
                 return
-            _set_text(self["status"], tr("Downloading update: %d%%") % 0)
-            self._run_background("install", self._download_and_install, result)
+            self.pending_update = result
+            question = tr("A new version %s is available. Do you want to update now?") % latest
+            self.session.openWithCallback(
+                self._update_confirmation,
+                MessageBox,
+                question,
+                MessageBox.TYPE_YESNO,
+                default=True,
+            )
             return
 
         self["progress"].setValue(100)
@@ -1587,6 +1599,16 @@ class UpdateScreen(Screen):
         message = tr("Update installed successfully. Please restart Enigma2.")
         _set_text(self["status"], message)
         self.session.open(MessageBox, message, MessageBox.TYPE_INFO, timeout=10)
+
+    def _update_confirmation(self, answer):
+        update_info = self.pending_update
+        self.pending_update = None
+        if self.closed or not answer or update_info is None:
+            if not self.closed and not answer:
+                _set_text(self["status"], tr("Update cancelled."))
+            return
+        _set_text(self["status"], tr("Downloading update: %d%%") % 0)
+        self._run_background("install", self._download_and_install, update_info)
 
     def _download_and_install(self, update_info):
         latest, installer, extension, asset = update_info
@@ -1617,6 +1639,20 @@ class UpdateScreen(Screen):
                 package.close()
         finally:
             response.close()
+
+        # A captive portal, proxy error, or GitHub error page must never be
+        # passed to opkg/dpkg.  This was the source of the misleading
+        # "Unsupported file ... given on commandline" message on Dreambox.
+        try:
+            with open(target, "rb") as package:
+                if package.read(8) != b"!<arch>\\n":
+                    raise RuntimeError("Downloaded update is not a valid package")
+        except Exception:
+            try:
+                os.unlink(target)
+            except Exception:
+                pass
+            raise
 
         self.pending_installing = True
         command = ["dpkg", "-i", target] if installer == "dpkg" else ["opkg", "install", target]

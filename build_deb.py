@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the DreamOS Online Picons .deb package.
+"""Build the DreamOS Online Picons .deb and .ipk packages.
 
 The build is self-contained and does not require dpkg-deb. Files already
 present in OnlinePicons/ (including plugin.png and menu icons) are copied
@@ -206,7 +206,7 @@ def parse_args():
         "--format",
         choices=("deb", "ipk", "all"),
         default="deb",
-        help="Package format to build (default: deb)",
+        help="Package format to build (default: deb; use all for both formats)",
     )
     return parser.parse_args()
 
